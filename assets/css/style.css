@@ -151,7 +151,7 @@ a {
   background: var(--bg-raised);
   border: 1px solid var(--line);
   border-radius: 8px;
-  max-width: 1160px;
+  max-width: 70vw;
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
