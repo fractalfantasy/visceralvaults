@@ -298,6 +298,8 @@ async function init() {
   addAnimator({ targetKey: "lightY", amount: 0.47, speed: 0.07 });
   addAnimator({ targetKey: "reliefHeight", amount: 0.017, speed: 0.03, waveform: "square" });
 
+  gui.close();
+
   function updateAnimators(t) {
     // Multiple animators can target the same parameter — sum their offsets
     // from that parameter's base rather than letting the last one processed
