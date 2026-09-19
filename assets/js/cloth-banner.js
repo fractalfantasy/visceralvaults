@@ -286,13 +286,20 @@ async function init() {
   addAnimator({ targetKey: "lightY", amount: 0.472, speed: 0.07 });
 
   function updateAnimators(t) {
+    // Multiple animators can target the same parameter — sum their offsets
+    // from that parameter's base rather than letting the last one processed
+    // silently overwrite the others.
+    const offsets = new Map();
     for (const { state } of animators) {
       if (!state.enabled) continue;
       const target = animatableTargets.find((a) => a.key === state.targetKey);
       if (!target) continue;
       const wave = (WAVEFORMS[state.waveform] || WAVEFORMS.sine)(state.speed * t);
-      const v = target.base + state.amount * wave;
-      setTargetValue(target, v);
+      offsets.set(target.key, (offsets.get(target.key) || 0) + state.amount * wave);
+    }
+    for (const [key, offset] of offsets) {
+      const target = animatableTargets.find((a) => a.key === key);
+      setTargetValue(target, target.base + offset);
     }
   }
 
