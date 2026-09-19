@@ -49,16 +49,25 @@ function openModal(release) {
   overlay.querySelector(".modal-date").textContent = formatDate(release.date);
   overlay.querySelector(".modal-link").href = release.bandcamp;
 
-  const list = overlay.querySelector(".tracklist");
-  list.innerHTML = release.tracks
-    .map((t, i) => `<li><span class="num">${i + 1}.</span><span>${t}</span></li>`)
-    .join("");
+  const playerHeight = 120 + release.tracks.length * 48;
+  const player = overlay.querySelector(".modal-player");
+  player.innerHTML = `
+    <iframe
+      style="border: 0; width: 100%; height: ${playerHeight}px;"
+      src="https://bandcamp.com/EmbeddedPlayer/album=${release.albumId}/size=large/bgcol=161616/linkcol=ffffff/tracklist=true/artwork=none/transparent=true/"
+      seamless
+      title="${release.title} — Bandcamp player">
+    </iframe>
+  `;
 
   overlay.classList.add("open");
 }
 
 function closeModal() {
-  document.querySelector(".modal-overlay")?.classList.remove("open");
+  const overlay = document.querySelector(".modal-overlay");
+  overlay?.classList.remove("open");
+  const player = overlay?.querySelector(".modal-player");
+  if (player) player.innerHTML = ""; // stop playback
 }
 
 function initReleaseGrid(releases, gridSelector) {

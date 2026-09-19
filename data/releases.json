@@ -7,6 +7,7 @@
     "date": "2018-10-31",
     "cover": "assets/img/covers/ww4.jpg",
     "bandcamp": "https://visceralvaults.bandcamp.com/album/ww4",
+    "albumId": "4113307904",
     "tracks": ["WW4", "WW4 (Famous Eno Remix)"]
   },
   {
@@ -17,6 +18,7 @@
     "date": "2017-04-06",
     "cover": "assets/img/covers/worst-vocal-dub.jpg",
     "bandcamp": "https://visceralvaults.bandcamp.com/album/worst-vocal-dub",
+    "albumId": "1054677423",
     "tracks": ["Worst (Vocal Dub)"]
   },
   {
@@ -27,6 +29,7 @@
     "date": "2017-04-04",
     "cover": "assets/img/covers/yea-hoe-mixes.jpg",
     "bandcamp": "https://visceralvaults.bandcamp.com/album/yea-hoe-mixes",
+    "albumId": "2220693097",
     "tracks": [
       "Yea Hoe (Devil's Daughter Mix)",
       "Yea Hoe (Richelle \"Virtual Geisha\" Remix)",
@@ -42,6 +45,7 @@
     "date": "2015-05-21",
     "cover": "assets/img/covers/how-we-rock.jpg",
     "bandcamp": "https://visceralvaults.bandcamp.com/album/how-we-rock",
+    "albumId": "1654643876",
     "tracks": ["How We Rock"]
   },
   {
@@ -52,6 +56,7 @@
     "date": "2014-01-15",
     "cover": "assets/img/covers/one.jpg",
     "bandcamp": "https://visceralvaults.bandcamp.com/album/one",
+    "albumId": "3471263512",
     "tracks": ["One"]
   },
   {
@@ -62,6 +67,7 @@
     "date": "2013-09-09",
     "cover": "assets/img/covers/yea-hoe.jpg",
     "bandcamp": "https://visceralvaults.bandcamp.com/album/yea-hoe",
+    "albumId": "3010357355",
     "tracks": ["Yea Hoe"]
   }
 ]
