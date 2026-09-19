@@ -71,6 +71,12 @@ main.wrap {
   pointer-events: none;
 }
 
+/* dat.gui's outer container hardcodes z-index:0, same level as the fixed
+   background — without this it now renders behind main.wrap's content. */
+.dg.ac {
+  z-index: 50 !important;
+}
+
 main.wrap .release-grid {
   pointer-events: auto;
 }
