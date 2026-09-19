@@ -20,27 +20,29 @@ if (!canvas) {
   });
 }
 
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
 // Downsamples straight to the cloth's grid resolution so each vertex gets a
 // smoothly-averaged value (letting the canvas's own image scaling do the
 // blur) instead of point-sampling a high-contrast image, which at a coarse
 // vertex grid would alias into a patchy, noisy-looking relief.
-function loadImageGrid(src, gridW, gridH) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      const c = document.createElement("canvas");
-      c.width = gridW;
-      c.height = gridH;
-      const ctx = c.getContext("2d");
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = "high";
-      ctx.drawImage(img, 0, 0, gridW, gridH);
-      resolve(ctx.getImageData(0, 0, gridW, gridH).data);
-    };
-    img.onerror = reject;
-    img.src = src;
-  });
+function sampleImageGrid(img, gridW, gridH) {
+  const c = document.createElement("canvas");
+  c.width = gridW;
+  c.height = gridH;
+  const ctx = c.getContext("2d");
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(img, 0, 0, gridW, gridH);
+  return ctx.getImageData(0, 0, gridW, gridH).data;
 }
 
 async function init() {
@@ -48,76 +50,35 @@ async function init() {
   await renderer.init();
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 
-  // The banner is now a fixed full-viewport background (not just a small
-  // top strip), so the plane matches the viewport's aspect instead of the
-  // logo's — the logo occupies a band at the top of it, sized to its own
-  // aspect, with plain cloth filling the rest down to the bottom of the
-  // screen. Width is fixed at 1 "world unit"; height follows the viewport.
+  const logoImage = await loadImage("assets/img/site/vvlogoblur.png");
+
+  // The banner is a fixed full-viewport background, so the mesh matches the
+  // viewport's aspect instead of the logo's — the logo occupies a band at
+  // the top of it, sized to its own proportions, with plain rippling cloth
+  // filling the rest down to the bottom of the screen. Width is fixed at 1
+  // "world unit"; height follows the viewport, and both the mesh and the
+  // camera get rebuilt together whenever that aspect changes (debounced —
+  // see resize() below) so they never drift out of sync with each other.
   const PLANE_WIDTH = 1;
-  const PLANE_HEIGHT = window.innerHeight / window.innerWidth;
   const LOGO_ASPECT = 996 / 500;
   const LOGO_BAND_HEIGHT = PLANE_WIDTH / LOGO_ASPECT;
-
-  // Keep total vertex count roughly constant regardless of aspect, so a
-  // tall/narrow mobile viewport doesn't end up with far more vertices (and
-  // a much heavier per-frame simulation) than a wide desktop one.
   const VERTEX_BUDGET = 45000;
-  const segX = Math.max(20, Math.round(Math.sqrt(VERTEX_BUDGET / PLANE_HEIGHT)));
-  const segY = Math.max(4, Math.round(segX * PLANE_HEIGHT));
-
-  const cloth = new Cloth({
-    width: PLANE_WIDTH,
-    height: PLANE_HEIGHT,
-    segmentsX: segX,
-    segmentsY: segY,
-  });
-  // The reference's displacementScale (9.45) was tuned for a much larger
-  // world scale; on our unit-height plane it blew Z-displacement out past
-  // the plane's own size. Scale it down to a subtle emboss instead.
-  cloth.displacementScale = 0.8;
-
-  // Bake the logo into the top band of the cloth's resting shape as a
-  // static depth target; everything below the band stays flat (0). The raw
-  // grayscale is kept separately so the relief height can be rescaled live
-  // (via the GUI) without re-reading the image.
-  const gridW = segX + 1;
-  const bandRows = Math.max(1, Math.round(segY * (LOGO_BAND_HEIGHT / PLANE_HEIGHT)));
-  const logoPixels = await loadImageGrid("assets/img/site/vvlogoblur.png", gridW, bandRows + 1);
-  const logoGray = new Float32Array(cloth.count); // zero-filled below the band
-  for (let gy = 0; gy <= bandRows; gy++) {
-    for (let gx = 0; gx < gridW; gx++) {
-      const p = (gy * gridW + gx) * 4;
-      logoGray[cloth.index(gx, gy)] = logoPixels[p] / 255; // R channel; logo is grayscale
-    }
-  }
-
+  const RELIEF_HEIGHT = 0.04;
   // Ripple impulse per unit of relief-height change, weighted by the logo's
   // own shape (so a slider move pokes the cloth roughly like a full-strength
   // pointer poke would at the max slider range, scaled down for smaller
   // moves) rather than just fading the target height in place.
   const RELIEF_RIPPLE_SCALE = 30;
-  let currentReliefHeight = 0;
 
-  function applyReliefHeight(height, { ripple = false } = {}) {
-    const delta = height - currentReliefHeight;
-    for (let i = 0; i < cloth.count; i++) {
-      cloth.depthTarget[i] = logoGray[i] * height;
-      if (ripple) {
-        cloth.v[i] += logoGray[i] * delta * RELIEF_RIPPLE_SCALE;
-      }
-    }
-    currentReliefHeight = height;
-  }
-
-  const RELIEF_HEIGHT = 0.04;
-  applyReliefHeight(RELIEF_HEIGHT);
+  let PLANE_HEIGHT;
+  let cloth;
+  let logoGray;
+  let mesh;
+  let currentReliefHeight = 0; // what's actually baked into cloth.depthTarget right now
+  let reliefHeightValue = RELIEF_HEIGHT; // last value asked for, survives mesh rebuilds
 
   const scene = new THREE.Scene();
-  const camera = new THREE.OrthographicCamera(
-    -PLANE_WIDTH / 2, PLANE_WIDTH / 2,
-    PLANE_HEIGHT / 2, -PLANE_HEIGHT / 2,
-    0.1, 10
-  );
+  const camera = new THREE.OrthographicCamera(-PLANE_WIDTH / 2, PLANE_WIDTH / 2, 0.5, -0.5, 0.1, 10);
   camera.position.set(0, 0, 3);
   camera.lookAt(0, 0, 0);
 
@@ -128,8 +89,74 @@ async function init() {
     side: THREE.DoubleSide,
   });
 
-  const mesh = new THREE.Mesh(cloth.geometry, material);
-  scene.add(mesh);
+  function applyReliefHeight(height, { ripple = false } = {}) {
+    const delta = height - currentReliefHeight;
+    for (let i = 0; i < cloth.count; i++) {
+      cloth.depthTarget[i] = logoGray[i] * height;
+      if (ripple) {
+        cloth.v[i] += logoGray[i] * delta * RELIEF_RIPPLE_SCALE;
+      }
+    }
+    currentReliefHeight = height;
+    reliefHeightValue = height;
+  }
+
+  // (Re)builds the cloth grid and its logo-band bake to match the current
+  // viewport aspect, swapping the mesh in place. Safe to call repeatedly —
+  // used both for the initial setup and every time the aspect settles after
+  // a resize.
+  function buildCloth() {
+    PLANE_HEIGHT = window.innerHeight / window.innerWidth;
+
+    // Keep total vertex count roughly constant regardless of aspect, so a
+    // tall/narrow mobile viewport doesn't end up with far more vertices (and
+    // a much heavier per-frame simulation) than a wide desktop one.
+    const segX = Math.max(20, Math.round(Math.sqrt(VERTEX_BUDGET / PLANE_HEIGHT)));
+    const segY = Math.max(4, Math.round(segX * PLANE_HEIGHT));
+
+    const newCloth = new Cloth({
+      width: PLANE_WIDTH,
+      height: PLANE_HEIGHT,
+      segmentsX: segX,
+      segmentsY: segY,
+    });
+    // The reference's displacementScale (9.45) was tuned for a much larger
+    // world scale; on our unit-height plane it blew Z-displacement out past
+    // the plane's own size. Scale it down to a subtle emboss instead.
+    newCloth.displacementScale = 0.8;
+
+    // Bake the logo into the top band of the cloth's resting shape as a
+    // static depth target; everything below the band stays flat (0).
+    const gridW = segX + 1;
+    const bandRows = Math.max(1, Math.round(segY * (LOGO_BAND_HEIGHT / PLANE_HEIGHT)));
+    const pixels = sampleImageGrid(logoImage, gridW, bandRows + 1);
+    const newLogoGray = new Float32Array(newCloth.count); // zero-filled below the band
+    for (let gy = 0; gy <= bandRows; gy++) {
+      for (let gx = 0; gx < gridW; gx++) {
+        const p = (gy * gridW + gx) * 4;
+        newLogoGray[newCloth.index(gx, gy)] = pixels[p] / 255; // R channel; logo is grayscale
+      }
+    }
+
+    if (mesh) {
+      scene.remove(mesh);
+      mesh.geometry.dispose();
+    }
+
+    cloth = newCloth;
+    logoGray = newLogoGray;
+    currentReliefHeight = 0;
+    applyReliefHeight(reliefHeightValue);
+
+    mesh = new THREE.Mesh(cloth.geometry, material);
+    scene.add(mesh);
+
+    camera.top = PLANE_HEIGHT / 2;
+    camera.bottom = -camera.top;
+    camera.updateProjectionMatrix();
+  }
+
+  buildCloth();
 
   const pointLight = new THREE.PointLight(0xffffff, 20, 0, 0);
   pointLight.position.set(-0.35, 0.59, 0.57);
@@ -374,25 +401,36 @@ async function init() {
   });
 
   // ---------- resize ----------
-  function resize() {
+  // Every resize tick re-fits the renderer and camera to the new aspect
+  // immediately (so the render never looks stretched), but rebuilding the
+  // mesh itself — new segment counts, re-baking the logo band — is
+  // debounced until the resize settles, since it's too heavy to redo on
+  // every intermediate frame while someone's actively dragging the window
+  // edge. The camera fit also runs once up front for initial sizing,
+  // without scheduling a pointless rebuild moments after buildCloth() just
+  // ran synchronously above.
+  function fitToViewport() {
     const w = canvas.clientWidth || 1;
     const h = canvas.clientHeight || 1;
     renderer.setSize(w, h, false);
 
-    // Re-fit the camera's vertical extent to the new aspect so the render
-    // isn't stretched; the mesh geometry itself keeps the segment density
-    // it was built with, so an extreme aspect change (e.g. rotating a
-    // phone) may show a little flat canvas past its top/bottom edge rather
-    // than regenerating the whole simulation.
     const aspect = h / w;
     camera.top = (PLANE_WIDTH * aspect) / 2;
     camera.bottom = -camera.top;
     camera.updateProjectionMatrix();
   }
 
-  window.addEventListener("resize", resize);
-  if (window.ResizeObserver) new ResizeObserver(resize).observe(canvas);
-  resize();
+  let rebuildTimer = null;
+
+  function onWindowResize() {
+    fitToViewport();
+    clearTimeout(rebuildTimer);
+    rebuildTimer = setTimeout(buildCloth, 300);
+  }
+
+  window.addEventListener("resize", onWindowResize);
+  if (window.ResizeObserver) new ResizeObserver(onWindowResize).observe(canvas);
+  fitToViewport();
 
   // ---------- render loop ----------
   let raf = null;
