@@ -186,7 +186,7 @@ async function init() {
 
   // Mutable so the pointer-interaction code (defined further down) can read
   // whatever the GUI slider is currently set to.
-  const pointerParams = { radius: 0.06, strength: 1 };
+  const pointerParams = { radius: 0.155, strength: 0.08 };
 
   const gui = new GUI();
 

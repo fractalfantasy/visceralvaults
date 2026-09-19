@@ -91,7 +91,13 @@ a {
 main.wrap {
   position: relative;
   z-index: 1;
-  margin-top: 20vh;
+  margin-top: 100vh;
+  /* Ensures there's always at least one more viewport-height of scroll room
+     below the grid, so the "Releases" button's scroll-to-top-of-grid
+     calculation never gets clamped by hitting the end of the document
+     (which otherwise happens on short pages — the grid can only scroll up
+     as far as the document actually extends). */
+  padding-bottom: 100vh;
   pointer-events: none;
 }
 
