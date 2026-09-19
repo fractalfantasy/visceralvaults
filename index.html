@@ -9,11 +9,19 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/style.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+  }
+}
+</script>
 </head>
 <body>
 
-<section class="hero">
-  <img class="hero-logo" src="assets/img/site/banner-wordmark.png" alt="Visceral Vaults">
+<section class="hero" id="hero">
+  <canvas id="liquid-canvas" role="img" aria-label="Visceral Vaults"></canvas>
+  <img class="hero-fallback" src="assets/img/site/vvlogo.png" alt="Visceral Vaults" hidden>
 </section>
 
 <main class="wrap">
@@ -41,6 +49,7 @@
 <script>
   loadReleases().then((releases) => initReleaseGrid(releases, "#release-grid"));
 </script>
+<script type="module" src="assets/js/liquid-banner.js"></script>
 
 </body>
 </html>

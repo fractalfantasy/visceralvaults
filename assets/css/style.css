@@ -41,11 +41,30 @@ a {
 
 .hero {
   border-bottom: 1px solid var(--line);
+  background: #000;
+  width: 100%;
+  aspect-ratio: 996 / 500;
+  max-height: 480px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 
-.hero-logo {
+#liquid-canvas {
   width: 100%;
+  height: 100%;
   display: block;
+}
+
+.hero-fallback {
+  width: 100%;
+  max-width: 720px;
+  padding: 0 24px;
+}
+
+.hero-fallback[hidden] {
+  display: none;
 }
 
 /* ---------- section headings ---------- */
