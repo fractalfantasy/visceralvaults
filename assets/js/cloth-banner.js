@@ -1,4 +1,5 @@
 import * as THREE from "three/webgpu";
+import { GUI } from "dat.gui";
 import { Cloth } from "./cloth.js";
 
 const canvas = document.getElementById("liquid-canvas");
@@ -64,17 +65,27 @@ async function init() {
   cloth.displacementScale = 0.8;
 
   // Bake the logo into the cloth's resting shape as a static depth target.
+  // The raw grayscale is kept separately so the relief height can be
+  // rescaled live (via the GUI) without re-reading the image.
   const gridW = segX + 1;
   const gridH = segY + 1;
   const logoPixels = await loadImageGrid("assets/img/site/vvlogoblur.png", gridW, gridH);
-  const RELIEF_HEIGHT = 0.16;
+  const logoGray = new Float32Array(cloth.count);
   for (let gy = 0; gy < gridH; gy++) {
     for (let gx = 0; gx < gridW; gx++) {
       const p = (gy * gridW + gx) * 4;
-      const gray = logoPixels[p] / 255; // R channel; logo is grayscale
-      cloth.depthTarget[cloth.index(gx, gy)] = gray * RELIEF_HEIGHT;
+      logoGray[cloth.index(gx, gy)] = logoPixels[p] / 255; // R channel; logo is grayscale
     }
   }
+
+  function applyReliefHeight(height) {
+    for (let i = 0; i < cloth.count; i++) {
+      cloth.depthTarget[i] = logoGray[i] * height;
+    }
+  }
+
+  const RELIEF_HEIGHT = 0.16;
+  applyReliefHeight(RELIEF_HEIGHT);
 
   const scene = new THREE.Scene();
   const camera = new THREE.OrthographicCamera(
@@ -101,6 +112,37 @@ async function init() {
 
   const ambient = new THREE.AmbientLight(0xffffff, 0.12);
   scene.add(ambient);
+
+  // ---------- debug controls ----------
+  const guiParams = {
+    roughness: material.roughness,
+    metalness: material.metalness,
+    color: "#" + material.color.getHexString(),
+    lightX: pointLight.position.x,
+    lightY: pointLight.position.y,
+    lightZ: pointLight.position.z,
+    lightIntensity: pointLight.intensity,
+    reliefHeight: RELIEF_HEIGHT,
+  };
+
+  const gui = new GUI();
+
+  const materialFolder = gui.addFolder("Material");
+  materialFolder.add(guiParams, "roughness", 0, 1, 0.01).onChange((v) => { material.roughness = v; });
+  materialFolder.add(guiParams, "metalness", 0, 1, 0.01).onChange((v) => { material.metalness = v; });
+  materialFolder.addColor(guiParams, "color").onChange((v) => { material.color.set(v); });
+  materialFolder.open();
+
+  const lightFolder = gui.addFolder("Point Light");
+  lightFolder.add(guiParams, "lightX", -2, 2, 0.01).onChange((v) => { pointLight.position.x = v; });
+  lightFolder.add(guiParams, "lightY", -2, 2, 0.01).onChange((v) => { pointLight.position.y = v; });
+  lightFolder.add(guiParams, "lightZ", 0, 5, 0.01).onChange((v) => { pointLight.position.z = v; });
+  lightFolder.add(guiParams, "lightIntensity", 0, 20, 0.1).name("brightness").onChange((v) => { pointLight.intensity = v; });
+  lightFolder.open();
+
+  const displacementFolder = gui.addFolder("Displacement");
+  displacementFolder.add(guiParams, "reliefHeight", 0, 0.6, 0.005).name("depth map amount").onChange((v) => { applyReliefHeight(v); });
+  displacementFolder.open();
 
   // ---------- pointer interaction ----------
   // Orthographic camera looking straight on, so screen UV maps linearly
