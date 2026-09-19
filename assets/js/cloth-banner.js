@@ -214,6 +214,15 @@ async function init() {
     });
   });
 
+  // Waveforms all range over [-1, 1] like sine does, so swapping shape
+  // doesn't require re-tuning an animator's amount.
+  const WAVEFORMS = {
+    sine: (phase) => Math.sin(2 * Math.PI * phase),
+    square: (phase) => (Math.sin(2 * Math.PI * phase) >= 0 ? 1 : -1),
+    saw: (phase) => 2 * (phase - Math.floor(phase)) - 1,
+  };
+  const waveformOptions = { Sine: "sine", Square: "square", Saw: "saw" };
+
   const animators = [];
   const animatorsFolder = gui.addFolder("Animators");
   animatorsFolder.open();
@@ -227,6 +236,7 @@ async function init() {
       targetKey: currentTarget.key,
       amount: initial.amount ?? 0,
       speed: initial.speed ?? 0.5,
+      waveform: initial.waveform ?? "sine",
       enabled: initial.enabled ?? true,
     };
     const sub = animatorsFolder.addFolder(`Animator ${animatorCount}`);
@@ -234,6 +244,7 @@ async function init() {
     const targetCtrl = sub.add(state, "targetKey", targetOptions).name("parameter");
     const amountCtrl = sub.add(state, "amount", 0, currentTarget.ampMax, currentTarget.ampMax / 200).name("amount");
     sub.add(state, "speed", 0, 3, 0.01).name("speed");
+    sub.add(state, "waveform", waveformOptions).name("waveform");
     const enabledCtrl = sub.add(state, "enabled");
 
     targetCtrl.onChange((key) => {
@@ -279,7 +290,8 @@ async function init() {
       if (!state.enabled) continue;
       const target = animatableTargets.find((a) => a.key === state.targetKey);
       if (!target) continue;
-      const v = target.base + state.amount * Math.sin(2 * Math.PI * state.speed * t);
+      const wave = (WAVEFORMS[state.waveform] || WAVEFORMS.sine)(state.speed * t);
+      const v = target.base + state.amount * wave;
       setTargetValue(target, v);
     }
   }
