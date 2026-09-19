@@ -1,0 +1,67 @@
+[
+  {
+    "id": "ww4",
+    "title": "WW4",
+    "artist": "King Louie & Mikey Dollaz",
+    "credit": "prod. by Zora Jones & Drippin",
+    "date": "2018-10-31",
+    "cover": "assets/img/covers/ww4.jpg",
+    "bandcamp": "https://visceralvaults.bandcamp.com/album/ww4",
+    "tracks": ["WW4", "WW4 (Famous Eno Remix)"]
+  },
+  {
+    "id": "worst-vocal-dub",
+    "title": "Worst (Vocal Dub)",
+    "artist": "DVA, Sinjin Hawke & Killa P",
+    "credit": "",
+    "date": "2017-04-06",
+    "cover": "assets/img/covers/worst-vocal-dub.jpg",
+    "bandcamp": "https://visceralvaults.bandcamp.com/album/worst-vocal-dub",
+    "tracks": ["Worst (Vocal Dub)"]
+  },
+  {
+    "id": "yea-hoe-mixes",
+    "title": "Yea Hoe Mixes",
+    "artist": "Gangsta Boo & Sinjin Hawke",
+    "credit": "",
+    "date": "2017-04-04",
+    "cover": "assets/img/covers/yea-hoe-mixes.jpg",
+    "bandcamp": "https://visceralvaults.bandcamp.com/album/yea-hoe-mixes",
+    "tracks": [
+      "Yea Hoe (Devil's Daughter Mix)",
+      "Yea Hoe (Richelle \"Virtual Geisha\" Remix)",
+      "Yea Hoe (Vjuan Allure Remix)",
+      "Yea Hoe (Instrumental)"
+    ]
+  },
+  {
+    "id": "how-we-rock",
+    "title": "How We Rock",
+    "artist": "Sicko Mobb, Sinjin Hawke & Drippin",
+    "credit": "",
+    "date": "2015-05-21",
+    "cover": "assets/img/covers/how-we-rock.jpg",
+    "bandcamp": "https://visceralvaults.bandcamp.com/album/how-we-rock",
+    "tracks": ["How We Rock"]
+  },
+  {
+    "id": "one",
+    "title": "One",
+    "artist": "Just Blaze & Sinjin Hawke",
+    "credit": "",
+    "date": "2014-01-15",
+    "cover": "assets/img/covers/one.jpg",
+    "bandcamp": "https://visceralvaults.bandcamp.com/album/one",
+    "tracks": ["One"]
+  },
+  {
+    "id": "yea-hoe",
+    "title": "Yea Hoe",
+    "artist": "Gangsta Boo & Sinjin Hawke",
+    "credit": "",
+    "date": "2013-09-09",
+    "cover": "assets/img/covers/yea-hoe.jpg",
+    "bandcamp": "https://visceralvaults.bandcamp.com/album/yea-hoe",
+    "tracks": ["Yea Hoe"]
+  }
+]

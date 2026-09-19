@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Visceral Vaults — Independent Record Label, Montreal</title>
+<meta name="description" content="Visceral Vaults is an independent record label based in Montreal, Québec, releasing collaborative music across trap, R&amp;B and bass.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="index.html">VISCERAL <span>VAULTS</span></a>
+    <nav class="main-nav">
+      <a href="index.html" aria-current="page">Home</a>
+      <a href="releases.html">Releases</a>
+      <a href="about.html">About</a>
+      <a href="https://visceralvaults.bandcamp.com/contact?b=2374827712&n=Visceral%20Vaults" target="_blank" rel="noopener">Contact</a>
+      <a href="https://visceralvaults.bandcamp.com/" target="_blank" rel="noopener">Bandcamp ↗</a>
+    </nav>
+    <button class="nav-toggle" aria-label="Toggle menu">☰</button>
+  </div>
+</header>
+
+<section class="hero">
+  <img class="hero-logo" src="assets/img/site/banner-wordmark.png" alt="Visceral Vaults">
+</section>
+
+<div class="hero-sub wrap">
+  <p class="hero-tagline">Independent record label — Montreal, Québec</p>
+  <div class="hero-actions">
+    <a class="btn btn-solid" href="https://visceralvaults.bandcamp.com/" target="_blank" rel="noopener">Listen on Bandcamp</a>
+    <a class="btn" href="releases.html">View Releases</a>
+  </div>
+</div>
+
+<main class="wrap">
+
+  <section class="section" id="featured-release"></section>
+
+  <section class="section">
+    <div class="section-head">
+      <h2 class="section-title">Releases</h2>
+      <a class="section-link" href="releases.html">View all</a>
+    </div>
+    <div class="release-grid" id="home-release-grid"></div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p class="copyright">© <span id="year"></span> Visceral Vaults</p>
+    <div class="footer-links">
+      <a href="https://visceralvaults.bandcamp.com/" target="_blank" rel="noopener">Bandcamp</a>
+      <a href="https://visceralvaults.bandcamp.com/contact?b=2374827712&n=Visceral%20Vaults" target="_blank" rel="noopener">Contact</a>
+    </div>
+  </div>
+</footer>
+
+<div class="modal-overlay">
+  <div class="modal">
+    <img class="modal-cover" src="" alt="">
+    <div class="modal-body">
+      <button class="modal-close" aria-label="Close">&times;</button>
+      <h3 class="modal-title"></h3>
+      <p class="modal-artist artist"></p>
+      <p class="modal-credit credit"></p>
+      <p class="modal-date date"></p>
+      <ul class="tracklist"></ul>
+      <a class="btn btn-solid modal-link" href="#" target="_blank" rel="noopener">Listen / Buy on Bandcamp</a>
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/main.js"></script>
+<script>
+  document.getElementById("year").textContent = new Date().getFullYear();
+
+  loadReleases().then((releases) => {
+    const latest = releases[0];
+    document.getElementById("featured-release").innerHTML = `
+      <div class="section-head">
+        <h2 class="section-title">Latest Release</h2>
+      </div>
+      <div class="featured">
+        <img src="${latest.cover}" alt="${latest.title} cover art">
+        <div>
+          <p class="featured-eyebrow">${new Date(latest.date).getFullYear()} · New Release</p>
+          <h3>${latest.title}</h3>
+          <p class="artist">${latest.artist}</p>
+          ${latest.credit ? `<p class="credit">${latest.credit}</p>` : ""}
+          <a class="btn btn-solid" href="${latest.bandcamp}" target="_blank" rel="noopener">Listen / Buy on Bandcamp</a>
+        </div>
+      </div>
+    `;
+
+    initReleaseGrid(releases.slice(0, 4), "#home-release-grid");
+  });
+</script>
+
+</body>
+</html>
