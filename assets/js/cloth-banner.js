@@ -204,13 +204,12 @@ async function init() {
   function addAnimator() {
     animatorCount++;
     const target = animatableTargets[0];
-    const state = { targetKey: target.key, freq: 0.5, amount: 0, speed: 1, enabled: true };
+    const state = { targetKey: target.key, amount: 0, speed: 0.5, enabled: true };
     const sub = animatorsFolder.addFolder(`Animator ${animatorCount}`);
 
     const targetCtrl = sub.add(state, "targetKey", targetOptions).name("parameter");
     const amountCtrl = sub.add(state, "amount", 0, target.ampMax, target.ampMax / 200).name("amount");
-    sub.add(state, "freq", 0, 3, 0.01).name("frequency");
-    sub.add(state, "speed", 0.1, 5, 0.01).name("speed");
+    sub.add(state, "speed", 0, 3, 0.01).name("speed");
     sub.add(state, "enabled");
 
     targetCtrl.onChange((key) => {
@@ -243,7 +242,7 @@ async function init() {
       if (!state.enabled) continue;
       const target = animatableTargets.find((a) => a.key === state.targetKey);
       if (!target) continue;
-      const v = target.base + state.amount * Math.sin(2 * Math.PI * state.freq * state.speed * t);
+      const v = target.base + state.amount * Math.sin(2 * Math.PI * state.speed * t);
       target.controller.setValue(v);
     }
   }
