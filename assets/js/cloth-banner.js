@@ -125,15 +125,18 @@ async function init() {
     // the plane's own size. Scale it down to a subtle emboss instead.
     newCloth.displacementScale = 0.8;
 
-    // Bake the logo into the top band of the cloth's resting shape as a
-    // static depth target; everything below the band stays flat (0).
+    // Bake the logo into a vertically-centered band of the cloth's resting
+    // shape as a static depth target; everything outside the band stays
+    // flat (0).
     const gridW = segX + 1;
     const bandRows = Math.max(1, Math.round(segY * (LOGO_BAND_HEIGHT / PLANE_HEIGHT)));
+    const bandStartRow = Math.round((segY - bandRows) / 2);
     const pixels = sampleImageGrid(logoImage, gridW, bandRows + 1);
-    const newLogoGray = new Float32Array(newCloth.count); // zero-filled below the band
-    for (let gy = 0; gy <= bandRows; gy++) {
+    const newLogoGray = new Float32Array(newCloth.count); // zero-filled outside the band
+    for (let i = 0; i <= bandRows; i++) {
+      const gy = bandStartRow + i;
       for (let gx = 0; gx < gridW; gx++) {
-        const p = (gy * gridW + gx) * 4;
+        const p = (i * gridW + gx) * 4;
         newLogoGray[newCloth.index(gx, gy)] = pixels[p] / 255; // R channel; logo is grayscale
       }
     }

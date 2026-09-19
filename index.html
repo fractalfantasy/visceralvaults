@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=2">
+<link rel="stylesheet" href="assets/css/style.css?v=3">
 <script type="importmap">
 {
   "imports": {
@@ -26,6 +26,7 @@
 <section class="hero" id="hero">
   <canvas id="liquid-canvas" role="img" aria-label="Visceral Vaults"></canvas>
   <img class="hero-fallback" src="assets/img/site/vvlogo.png" alt="Visceral Vaults" hidden>
+  <button class="hero-cta" id="releases-cta">Releases</button>
 </section>
 
 <main class="wrap">
@@ -52,8 +53,11 @@
 <script src="assets/js/main.js"></script>
 <script>
   loadReleases().then((releases) => initReleaseGrid(releases, "#release-grid"));
+  document.getElementById("releases-cta")?.addEventListener("click", () => {
+    document.querySelector(".release-grid")?.scrollIntoView({ behavior: "smooth" });
+  });
 </script>
-<script type="module" src="assets/js/cloth-banner.js?v=3"></script>
+<script type="module" src="assets/js/cloth-banner.js?v=4"></script>
 
 </body>
 </html>

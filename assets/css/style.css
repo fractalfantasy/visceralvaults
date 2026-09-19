@@ -64,10 +64,34 @@ a {
   padding: 0 24px;
 }
 
+.hero-cta {
+  position: absolute;
+  top: 60%;
+  left: 50%;
+  transform: translate(-50%, 0);
+  padding: 14px 36px;
+  font-size: 13px;
+  font-family: var(--font-body);
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--fg);
+  background: transparent;
+  border: 1px solid var(--fg);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.hero-cta:hover {
+  background: var(--fg);
+  color: #000;
+}
+
 main.wrap {
   position: relative;
   z-index: 1;
-  margin-top: 44vh;
+  margin-top: 100vh;
   pointer-events: none;
 }
 
