@@ -141,20 +141,20 @@ async function init() {
   const gui = new GUI();
 
   const materialFolder = gui.addFolder("Material");
-  materialFolder.add(guiParams, "roughness", 0, 1, 0.01).onChange((v) => { material.roughness = v; });
-  materialFolder.add(guiParams, "metalness", 0, 1, 0.01).onChange((v) => { material.metalness = v; });
+  const roughnessCtrl = materialFolder.add(guiParams, "roughness", 0, 1, 0.01).onChange((v) => { material.roughness = v; });
+  const metalnessCtrl = materialFolder.add(guiParams, "metalness", 0, 1, 0.01).onChange((v) => { material.metalness = v; });
   materialFolder.addColor(guiParams, "color").onChange((v) => { material.color.set(v); });
   materialFolder.open();
 
   const lightFolder = gui.addFolder("Point Light");
-  lightFolder.add(guiParams, "lightX", -2, 2, 0.01).onChange((v) => { pointLight.position.x = v; });
-  lightFolder.add(guiParams, "lightY", -2, 2, 0.01).onChange((v) => { pointLight.position.y = v; });
-  lightFolder.add(guiParams, "lightZ", 0, 5, 0.01).onChange((v) => { pointLight.position.z = v; });
-  lightFolder.add(guiParams, "lightIntensity", 0, 20, 0.1).name("brightness").onChange((v) => { pointLight.intensity = v; });
+  const lightXCtrl = lightFolder.add(guiParams, "lightX", -2, 2, 0.01).onChange((v) => { pointLight.position.x = v; });
+  const lightYCtrl = lightFolder.add(guiParams, "lightY", -2, 2, 0.01).onChange((v) => { pointLight.position.y = v; });
+  const lightZCtrl = lightFolder.add(guiParams, "lightZ", 0, 5, 0.01).onChange((v) => { pointLight.position.z = v; });
+  const lightIntensityCtrl = lightFolder.add(guiParams, "lightIntensity", 0, 20, 0.1).name("brightness").onChange((v) => { pointLight.intensity = v; });
   lightFolder.open();
 
   const displacementFolder = gui.addFolder("Displacement");
-  displacementFolder.add(guiParams, "reliefHeight", 0, 0.6, 0.005).name("depth map amount").onChange((v) => { applyReliefHeight(v, { ripple: true }); });
+  const reliefCtrl = displacementFolder.add(guiParams, "reliefHeight", 0, 0.6, 0.005).name("depth map amount").onChange((v) => { applyReliefHeight(v, { ripple: true }); });
   displacementFolder.open();
 
   // ---------- post-processing (bloom) ----------
@@ -172,9 +172,81 @@ async function init() {
   guiParams.bloomThreshold = BLOOM_THRESHOLD;
 
   const bloomFolder = gui.addFolder("Bloom");
-  bloomFolder.add(guiParams, "bloomStrength", 0, 3, 0.01).name("amount").onChange((v) => { bloomPass.strength.value = v; });
-  bloomFolder.add(guiParams, "bloomThreshold", 0, 1, 0.01).name("threshold").onChange((v) => { bloomPass.threshold.value = v; });
+  const bloomStrengthCtrl = bloomFolder.add(guiParams, "bloomStrength", 0, 3, 0.01).name("amount").onChange((v) => { bloomPass.strength.value = v; });
+  const bloomThresholdCtrl = bloomFolder.add(guiParams, "bloomThreshold", 0, 1, 0.01).name("threshold").onChange((v) => { bloomPass.threshold.value = v; });
   bloomFolder.open();
+
+  // ---------- animators ----------
+  // Each animator drives one target parameter as base + amount*sin(2*pi*freq*t),
+  // reusing that parameter's own controller (so its slider updates live and
+  // the existing onChange logic still applies the value everywhere it needs
+  // to go — including the depth-map's ripple-on-change behavior).
+  const animatableTargets = [
+    { key: "roughness", label: "Material: Roughness", base: guiParams.roughness, ampMax: 0.5, controller: roughnessCtrl },
+    { key: "metalness", label: "Material: Metalness", base: guiParams.metalness, ampMax: 0.5, controller: metalnessCtrl },
+    { key: "lightX", label: "Point Light: X", base: guiParams.lightX, ampMax: 2, controller: lightXCtrl },
+    { key: "lightY", label: "Point Light: Y", base: guiParams.lightY, ampMax: 2, controller: lightYCtrl },
+    { key: "lightZ", label: "Point Light: Z", base: guiParams.lightZ, ampMax: 2.5, controller: lightZCtrl },
+    { key: "lightIntensity", label: "Point Light: Brightness", base: guiParams.lightIntensity, ampMax: 10, controller: lightIntensityCtrl },
+    { key: "reliefHeight", label: "Displacement: Depth Map Amount", base: guiParams.reliefHeight, ampMax: 0.3, controller: reliefCtrl },
+    { key: "bloomStrength", label: "Bloom: Amount", base: guiParams.bloomStrength, ampMax: 1.5, controller: bloomStrengthCtrl },
+    { key: "bloomThreshold", label: "Bloom: Threshold", base: guiParams.bloomThreshold, ampMax: 0.5, controller: bloomThresholdCtrl },
+  ];
+  const targetOptions = {};
+  animatableTargets.forEach((t) => { targetOptions[t.label] = t.key; });
+
+  const animators = [];
+  const animatorsFolder = gui.addFolder("Animators");
+  animatorsFolder.open();
+
+  let animatorCount = 0;
+
+  function addAnimator() {
+    animatorCount++;
+    const target = animatableTargets[0];
+    const state = { targetKey: target.key, freq: 0.5, amount: 0, speed: 1, enabled: true };
+    const sub = animatorsFolder.addFolder(`Animator ${animatorCount}`);
+
+    const targetCtrl = sub.add(state, "targetKey", targetOptions).name("parameter");
+    const amountCtrl = sub.add(state, "amount", 0, target.ampMax, target.ampMax / 200).name("amount");
+    sub.add(state, "freq", 0, 3, 0.01).name("frequency");
+    sub.add(state, "speed", 0.1, 5, 0.01).name("speed");
+    sub.add(state, "enabled");
+
+    targetCtrl.onChange((key) => {
+      const t = animatableTargets.find((a) => a.key === key);
+      amountCtrl.max(t.ampMax);
+      if (state.amount > t.ampMax) {
+        state.amount = t.ampMax;
+        amountCtrl.updateDisplay();
+      }
+    });
+
+    sub.add({
+      remove: () => {
+        animatorsFolder.removeFolder(sub);
+        const i = animators.indexOf(entry);
+        if (i >= 0) animators.splice(i, 1);
+      },
+    }, "remove").name("− remove");
+
+    sub.open();
+
+    const entry = { state };
+    animators.push(entry);
+  }
+
+  animatorsFolder.add({ addAnimator }, "addAnimator").name("+ Add Animator");
+
+  function updateAnimators(t) {
+    for (const { state } of animators) {
+      if (!state.enabled) continue;
+      const target = animatableTargets.find((a) => a.key === state.targetKey);
+      if (!target) continue;
+      const v = target.base + state.amount * Math.sin(2 * Math.PI * state.freq * state.speed * t);
+      target.controller.setValue(v);
+    }
+  }
 
   // ---------- pointer interaction ----------
   // Orthographic camera looking straight on, so screen UV maps linearly
@@ -242,6 +314,7 @@ async function init() {
     const dt = (now - lastTime) / 1000;
     lastTime = now;
 
+    updateAnimators(now / 1000);
     cloth.update(dt);
     await postProcessing.renderAsync();
 
