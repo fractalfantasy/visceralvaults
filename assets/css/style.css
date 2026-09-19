@@ -37,60 +37,21 @@ a {
   padding: 0 24px;
 }
 
-/* ---------- header ---------- */
-
-.site-header {
-  border-bottom: 1px solid var(--line);
-}
-
-.site-header .wrap {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 68px;
-}
-
-.brand {
-  font-size: 16px;
-  font-weight: 800;
-  letter-spacing: 1.5px;
-  white-space: nowrap;
-  text-transform: uppercase;
-}
-
-.brand span { color: var(--fg-dim); font-weight: 500; }
-
 /* ---------- hero ---------- */
 
 .hero {
   border-bottom: 1px solid var(--line);
-  text-align: center;
-  padding: 56px 24px 40px;
 }
 
 .hero-logo {
-  width: min(560px, 100%);
-  margin: 0 auto;
-}
-
-.hero-tagline {
-  font-size: 15px;
-  color: var(--fg-dim);
-  margin: 22px 0 0;
+  width: 100%;
+  display: block;
 }
 
 /* ---------- section headings ---------- */
 
 .section {
   padding: 56px 0;
-}
-
-.section-title {
-  font-size: 22px;
-  font-weight: 800;
-  letter-spacing: 0.3px;
-  margin: 0 0 32px;
-  text-transform: uppercase;
 }
 
 /* ---------- release grid ---------- */
@@ -254,22 +215,6 @@ a {
 .tracklist li .num {
   color: var(--fg-dim);
   width: 20px;
-}
-
-/* ---------- footer ---------- */
-
-.site-footer {
-  border-top: 1px solid var(--line);
-  padding: 32px 0;
-}
-
-.site-footer .wrap {
-  text-align: center;
-}
-
-.copyright {
-  font-size: 12px;
-  color: var(--fg-dim);
 }
 
 /* ---------- responsive ---------- */
