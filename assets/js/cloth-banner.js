@@ -97,7 +97,7 @@ async function init() {
     currentReliefHeight = height;
   }
 
-  const RELIEF_HEIGHT = 0.12;
+  const RELIEF_HEIGHT = 0.04;
   applyReliefHeight(RELIEF_HEIGHT);
 
   const scene = new THREE.Scene();
@@ -110,9 +110,9 @@ async function init() {
   camera.lookAt(0, 0, 0);
 
   const material = new THREE.MeshStandardMaterial({
-    color: 0x000000,
-    roughness: 0.26,
-    metalness: 0.62,
+    color: 0x161616,
+    roughness: 0.25,
+    metalness: 0.31,
     side: THREE.DoubleSide,
   });
 
@@ -120,7 +120,7 @@ async function init() {
   scene.add(mesh);
 
   const pointLight = new THREE.PointLight(0xffffff, 20, 0, 0);
-  pointLight.position.set(1.06, 0.54, 0.57);
+  pointLight.position.set(-0.35, 0.59, 0.57);
   scene.add(pointLight);
 
   const ambient = new THREE.AmbientLight(0xffffff, 0.12);
@@ -162,7 +162,7 @@ async function init() {
   const scenePass = THREE.pass(scene, camera);
   const sceneColor = scenePass.getTextureNode();
 
-  const BLOOM_STRENGTH = 0.58;
+  const BLOOM_STRENGTH = 0.41;
   const BLOOM_RADIUS = 0.4;
   const BLOOM_THRESHOLD = 1;
   const bloomPass = bloom(sceneColor, BLOOM_STRENGTH, BLOOM_RADIUS, BLOOM_THRESHOLD);
@@ -281,9 +281,10 @@ async function init() {
 
   animatorsFolder.add({ addAnimator }, "addAnimator").name("+ Add Animator");
 
-  addAnimator({ targetKey: "reliefHeight", amount: 0.095, speed: 0.47 });
-  addAnimator({ targetKey: "lightX", amount: 0.807, speed: 0.13 });
-  addAnimator({ targetKey: "lightY", amount: 0.472, speed: 0.07 });
+  addAnimator({ targetKey: "reliefHeight", amount: 0.037, speed: 0.24 });
+  addAnimator({ targetKey: "lightX", amount: 0.49, speed: 0.13 });
+  addAnimator({ targetKey: "lightY", amount: 0.47, speed: 0.07 });
+  addAnimator({ targetKey: "reliefHeight", amount: 0.017, speed: 0.03, waveform: "square" });
 
   function updateAnimators(t) {
     // Multiple animators can target the same parameter — sum their offsets
