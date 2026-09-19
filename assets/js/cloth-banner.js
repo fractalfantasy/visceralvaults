@@ -79,13 +79,25 @@ async function init() {
     }
   }
 
-  function applyReliefHeight(height) {
+  // Ripple impulse per unit of relief-height change, weighted by the logo's
+  // own shape (so a slider move pokes the cloth roughly like a full-strength
+  // pointer poke would at the max slider range, scaled down for smaller
+  // moves) rather than just fading the target height in place.
+  const RELIEF_RIPPLE_SCALE = 30;
+  let currentReliefHeight = 0;
+
+  function applyReliefHeight(height, { ripple = false } = {}) {
+    const delta = height - currentReliefHeight;
     for (let i = 0; i < cloth.count; i++) {
       cloth.depthTarget[i] = logoGray[i] * height;
+      if (ripple) {
+        cloth.v[i] += logoGray[i] * delta * RELIEF_RIPPLE_SCALE;
+      }
     }
+    currentReliefHeight = height;
   }
 
-  const RELIEF_HEIGHT = 0.17;
+  const RELIEF_HEIGHT = 0.05;
   applyReliefHeight(RELIEF_HEIGHT);
 
   const scene = new THREE.Scene();
@@ -108,7 +120,7 @@ async function init() {
   scene.add(mesh);
 
   const pointLight = new THREE.PointLight(0xffffff, 20, 0, 0);
-  pointLight.position.set(-0.26, -0.09, 0.74);
+  pointLight.position.set(-0.35, -0.13, 0.41);
   scene.add(pointLight);
 
   const ambient = new THREE.AmbientLight(0xffffff, 0.12);
@@ -142,7 +154,7 @@ async function init() {
   lightFolder.open();
 
   const displacementFolder = gui.addFolder("Displacement");
-  displacementFolder.add(guiParams, "reliefHeight", 0, 0.6, 0.005).name("depth map amount").onChange((v) => { applyReliefHeight(v); });
+  displacementFolder.add(guiParams, "reliefHeight", 0, 0.6, 0.005).name("depth map amount").onChange((v) => { applyReliefHeight(v, { ripple: true }); });
   displacementFolder.open();
 
   // ---------- post-processing (bloom) ----------
@@ -150,9 +162,9 @@ async function init() {
   const scenePass = THREE.pass(scene, camera);
   const sceneColor = scenePass.getTextureNode();
 
-  const BLOOM_STRENGTH = 0.6;
+  const BLOOM_STRENGTH = 0.31;
   const BLOOM_RADIUS = 0.4;
-  const BLOOM_THRESHOLD = 0.15;
+  const BLOOM_THRESHOLD = 0.99;
   const bloomPass = bloom(sceneColor, BLOOM_STRENGTH, BLOOM_RADIUS, BLOOM_THRESHOLD);
   postProcessing.outputNode = sceneColor.add(bloomPass);
 
