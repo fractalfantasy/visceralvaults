@@ -150,6 +150,10 @@ async function init() {
     reliefHeight: RELIEF_HEIGHT,
   };
 
+  // Mutable so the pointer-interaction code (defined further down) can read
+  // whatever the GUI slider is currently set to.
+  const pointerParams = { radius: 0.06, strength: 1 };
+
   const gui = new GUI();
 
   const materialFolder = gui.addFolder("Material");
@@ -168,6 +172,11 @@ async function init() {
   const displacementFolder = gui.addFolder("Displacement");
   const reliefCtrl = displacementFolder.add(guiParams, "reliefHeight", 0, 0.6, 0.005).name("depth map amount");
   displacementFolder.open();
+
+  const pointerFolder = gui.addFolder("Pointer");
+  pointerFolder.add(pointerParams, "radius", 0.01, 0.3, 0.005).name("mouse size");
+  pointerFolder.add(pointerParams, "strength", 0, 3, 0.01).name("liquid amount");
+  pointerFolder.open();
 
   // ---------- post-processing (bloom) ----------
   const postProcessing = new THREE.PostProcessing(renderer);
@@ -323,7 +332,6 @@ async function init() {
   // onto the plane's local X/Y — no raycasting needed.
   const FORCE_SCALE = 1400;
   const MAX_FORCE = 18;
-  const POINTER_RADIUS = 0.06;
 
   let lastLocalX = null;
   let lastLocalY = null;
@@ -344,9 +352,9 @@ async function init() {
       const dx = x - lastLocalX;
       const dy = y - lastLocalY;
       const speed = Math.sqrt(dx * dx + dy * dy);
-      const strength = Math.min(speed * FORCE_SCALE, MAX_FORCE);
+      const strength = Math.min(speed * FORCE_SCALE, MAX_FORCE) * pointerParams.strength;
       if (strength > 0.001) {
-        cloth.applyForce(x, y, POINTER_RADIUS, strength);
+        cloth.applyForce(x, y, pointerParams.radius, strength);
       }
     }
     lastLocalX = x;
@@ -356,7 +364,7 @@ async function init() {
   canvas.addEventListener("pointermove", onPointerMove);
   canvas.addEventListener("pointerdown", (e) => {
     const { x, y } = localFromEvent(e);
-    cloth.applyForce(x, y, POINTER_RADIUS * 1.4, MAX_FORCE);
+    cloth.applyForce(x, y, pointerParams.radius * 1.4, MAX_FORCE * pointerParams.strength);
     lastLocalX = x;
     lastLocalY = y;
   });
