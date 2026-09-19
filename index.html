@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=9">
+<link rel="stylesheet" href="assets/css/style.css?v=11">
 <script type="importmap">
 {
   "imports": {
@@ -55,24 +55,9 @@
   loadReleases().then((releases) => initReleaseGrid(releases, "#release-grid"));
 
   const releasesCta = document.getElementById("releases-cta");
-  let releasesOpen = false;
-  const RELEASES_TOP_GAP = 180; // px clearance above the grid when open
-
+  const mainWrap = document.querySelector("main.wrap");
   releasesCta?.addEventListener("click", () => {
-    releasesOpen = !releasesOpen;
-    if (releasesOpen) {
-      const grid = document.querySelector(".release-grid");
-      if (grid) {
-        const targetY = grid.getBoundingClientRect().top + window.scrollY - RELEASES_TOP_GAP;
-        window.scrollTo({ top: targetY, behavior: "smooth" });
-      }
-    } else {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
-  });
-  // If the user scrolls by hand, keep the button's toggle state honest.
-  window.addEventListener("scroll", () => {
-    releasesOpen = window.scrollY > window.innerHeight * 0.5;
+    mainWrap?.classList.toggle("open");
   });
 </script>
 <script type="module" src="assets/js/cloth-banner.js?v=7"></script>

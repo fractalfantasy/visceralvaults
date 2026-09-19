@@ -89,22 +89,37 @@ a {
 }
 
 main.wrap {
-  position: relative;
+  position: fixed;
+  top: 180px;
+  left: 0;
+  right: 0;
+  bottom: 24px;
   z-index: 1;
-  margin-top: 100vh;
-  /* Ensures there's always at least one more viewport-height of scroll room
-     below the grid, so the "Releases" button's scroll-to-top-of-grid
-     calculation never gets clamped by hitting the end of the document
-     (which otherwise happens on short pages — the grid can only scroll up
-     as far as the document actually extends). */
-  padding-bottom: 100vh;
+  overflow-y: auto;
+  display: none;
   pointer-events: none;
+}
+
+main.wrap.open {
+  display: block;
 }
 
 /* dat.gui's outer container hardcodes z-index:0, same level as the fixed
    background — without this it now renders behind main.wrap's content. */
 .dg.ac {
   z-index: 50 !important;
+}
+
+/* Move the panel itself to the bottom-left instead of dat.gui's default
+   top-right float. */
+.dg.main {
+  position: fixed !important;
+  top: auto !important;
+  bottom: 16px !important;
+  left: 16px !important;
+  right: auto !important;
+  float: none !important;
+  margin: 0 !important;
 }
 
 main.wrap .release-grid {
