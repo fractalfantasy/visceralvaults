@@ -37,14 +37,15 @@ a {
   padding: 0 24px;
 }
 
-/* ---------- hero ---------- */
+/* ---------- hero (fixed full-viewport background) ---------- */
 
 .hero {
-  border-bottom: 1px solid var(--line);
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
   background: #000;
-  width: 100%;
-  aspect-ratio: 996 / 500;
-  max-height: 480px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -61,6 +62,12 @@ a {
   width: 100%;
   max-width: 720px;
   padding: 0 24px;
+}
+
+main.wrap {
+  position: relative;
+  z-index: 1;
+  padding-top: 44vh;
 }
 
 .hero-fallback[hidden] {

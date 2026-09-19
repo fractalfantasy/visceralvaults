@@ -48,11 +48,22 @@ async function init() {
   await renderer.init();
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 
-  const ASPECT = 996 / 500;
-  const PLANE_HEIGHT = 1;
-  const PLANE_WIDTH = PLANE_HEIGHT * ASPECT;
-  const segX = window.innerWidth < 700 ? 160 : 280;
-  const segY = Math.max(4, Math.round(segX / ASPECT));
+  // The banner is now a fixed full-viewport background (not just a small
+  // top strip), so the plane matches the viewport's aspect instead of the
+  // logo's — the logo occupies a band at the top of it, sized to its own
+  // aspect, with plain cloth filling the rest down to the bottom of the
+  // screen. Width is fixed at 1 "world unit"; height follows the viewport.
+  const PLANE_WIDTH = 1;
+  const PLANE_HEIGHT = window.innerHeight / window.innerWidth;
+  const LOGO_ASPECT = 996 / 500;
+  const LOGO_BAND_HEIGHT = PLANE_WIDTH / LOGO_ASPECT;
+
+  // Keep total vertex count roughly constant regardless of aspect, so a
+  // tall/narrow mobile viewport doesn't end up with far more vertices (and
+  // a much heavier per-frame simulation) than a wide desktop one.
+  const VERTEX_BUDGET = 45000;
+  const segX = Math.max(20, Math.round(Math.sqrt(VERTEX_BUDGET / PLANE_HEIGHT)));
+  const segY = Math.max(4, Math.round(segX * PLANE_HEIGHT));
 
   const cloth = new Cloth({
     width: PLANE_WIDTH,
@@ -65,14 +76,15 @@ async function init() {
   // the plane's own size. Scale it down to a subtle emboss instead.
   cloth.displacementScale = 0.8;
 
-  // Bake the logo into the cloth's resting shape as a static depth target.
-  // The raw grayscale is kept separately so the relief height can be
-  // rescaled live (via the GUI) without re-reading the image.
+  // Bake the logo into the top band of the cloth's resting shape as a
+  // static depth target; everything below the band stays flat (0). The raw
+  // grayscale is kept separately so the relief height can be rescaled live
+  // (via the GUI) without re-reading the image.
   const gridW = segX + 1;
-  const gridH = segY + 1;
-  const logoPixels = await loadImageGrid("assets/img/site/vvlogoblur.png", gridW, gridH);
-  const logoGray = new Float32Array(cloth.count);
-  for (let gy = 0; gy < gridH; gy++) {
+  const bandRows = Math.max(1, Math.round(segY * (LOGO_BAND_HEIGHT / PLANE_HEIGHT)));
+  const logoPixels = await loadImageGrid("assets/img/site/vvlogoblur.png", gridW, bandRows + 1);
+  const logoGray = new Float32Array(cloth.count); // zero-filled below the band
+  for (let gy = 0; gy <= bandRows; gy++) {
     for (let gx = 0; gx < gridW; gx++) {
       const p = (gy * gridW + gx) * 4;
       logoGray[cloth.index(gx, gy)] = logoPixels[p] / 255; // R channel; logo is grayscale
@@ -356,6 +368,16 @@ async function init() {
     const w = canvas.clientWidth || 1;
     const h = canvas.clientHeight || 1;
     renderer.setSize(w, h, false);
+
+    // Re-fit the camera's vertical extent to the new aspect so the render
+    // isn't stretched; the mesh geometry itself keeps the segment density
+    // it was built with, so an extreme aspect change (e.g. rotating a
+    // phone) may show a little flat canvas past its top/bottom edge rather
+    // than regenerating the whole simulation.
+    const aspect = h / w;
+    camera.top = (PLANE_WIDTH * aspect) / 2;
+    camera.bottom = -camera.top;
+    camera.updateProjectionMatrix();
   }
 
   window.addEventListener("resize", resize);
