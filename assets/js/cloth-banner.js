@@ -97,7 +97,7 @@ async function init() {
     currentReliefHeight = height;
   }
 
-  const RELIEF_HEIGHT = 0.05;
+  const RELIEF_HEIGHT = 0.12;
   applyReliefHeight(RELIEF_HEIGHT);
 
   const scene = new THREE.Scene();
@@ -111,8 +111,8 @@ async function init() {
 
   const material = new THREE.MeshStandardMaterial({
     color: 0x000000,
-    roughness: 0.37,
-    metalness: 0.78,
+    roughness: 0.26,
+    metalness: 0.62,
     side: THREE.DoubleSide,
   });
 
@@ -120,7 +120,7 @@ async function init() {
   scene.add(mesh);
 
   const pointLight = new THREE.PointLight(0xffffff, 20, 0, 0);
-  pointLight.position.set(-0.35, -0.13, 0.41);
+  pointLight.position.set(1.06, 0.54, 0.57);
   scene.add(pointLight);
 
   const ambient = new THREE.AmbientLight(0xffffff, 0.12);
@@ -162,9 +162,9 @@ async function init() {
   const scenePass = THREE.pass(scene, camera);
   const sceneColor = scenePass.getTextureNode();
 
-  const BLOOM_STRENGTH = 0.31;
+  const BLOOM_STRENGTH = 0.58;
   const BLOOM_RADIUS = 0.4;
-  const BLOOM_THRESHOLD = 0.99;
+  const BLOOM_THRESHOLD = 1;
   const bloomPass = bloom(sceneColor, BLOOM_STRENGTH, BLOOM_RADIUS, BLOOM_THRESHOLD);
   postProcessing.outputNode = sceneColor.add(bloomPass);
 
@@ -194,7 +194,7 @@ async function init() {
     { key: "lightY", label: "Point Light: Y", base: guiParams.lightY, ampMax: 2, controller: lightYCtrl, apply: (v) => { pointLight.position.y = v; } },
     { key: "lightZ", label: "Point Light: Z", base: guiParams.lightZ, ampMax: 2.5, controller: lightZCtrl, apply: (v) => { pointLight.position.z = v; } },
     { key: "lightIntensity", label: "Point Light: Brightness", base: guiParams.lightIntensity, ampMax: 10, controller: lightIntensityCtrl, apply: (v) => { pointLight.intensity = v; } },
-    { key: "reliefHeight", label: "Displacement: Depth Map Amount", base: guiParams.reliefHeight, ampMax: 0.3, controller: reliefCtrl, apply: (v) => { applyReliefHeight(v, { ripple: !animatingNow }); } },
+    { key: "reliefHeight", label: "Displacement: Depth Map Amount", base: guiParams.reliefHeight, ampMax: 0.3, controller: reliefCtrl, apply: (v) => { applyReliefHeight(v, { ripple: true }); } },
     { key: "bloomStrength", label: "Bloom: Amount", base: guiParams.bloomStrength, ampMax: 1.5, controller: bloomStrengthCtrl, apply: (v) => { bloomPass.strength.value = v; } },
     { key: "bloomThreshold", label: "Bloom: Threshold", base: guiParams.bloomThreshold, ampMax: 0.5, controller: bloomThresholdCtrl, apply: (v) => { bloomPass.threshold.value = v; } },
   ];
@@ -220,10 +220,15 @@ async function init() {
 
   let animatorCount = 0;
 
-  function addAnimator() {
+  function addAnimator(initial = {}) {
     animatorCount++;
-    let currentTarget = animatableTargets[0];
-    const state = { targetKey: currentTarget.key, amount: 0, speed: 0.5, enabled: true };
+    let currentTarget = animatableTargets.find((a) => a.key === initial.targetKey) || animatableTargets[0];
+    const state = {
+      targetKey: currentTarget.key,
+      amount: initial.amount ?? 0,
+      speed: initial.speed ?? 0.5,
+      enabled: initial.enabled ?? true,
+    };
     const sub = animatorsFolder.addFolder(`Animator ${animatorCount}`);
 
     const targetCtrl = sub.add(state, "targetKey", targetOptions).name("parameter");
@@ -264,6 +269,10 @@ async function init() {
   }
 
   animatorsFolder.add({ addAnimator }, "addAnimator").name("+ Add Animator");
+
+  addAnimator({ targetKey: "reliefHeight", amount: 0.095, speed: 0.47 });
+  addAnimator({ targetKey: "lightX", amount: 0.807, speed: 0.13 });
+  addAnimator({ targetKey: "lightY", amount: 0.472, speed: 0.07 });
 
   function updateAnimators(t) {
     for (const { state } of animators) {
