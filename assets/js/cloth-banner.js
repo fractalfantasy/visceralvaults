@@ -141,20 +141,20 @@ async function init() {
   const gui = new GUI();
 
   const materialFolder = gui.addFolder("Material");
-  const roughnessCtrl = materialFolder.add(guiParams, "roughness", 0, 1, 0.01).onChange((v) => { material.roughness = v; });
-  const metalnessCtrl = materialFolder.add(guiParams, "metalness", 0, 1, 0.01).onChange((v) => { material.metalness = v; });
+  const roughnessCtrl = materialFolder.add(guiParams, "roughness", 0, 1, 0.01);
+  const metalnessCtrl = materialFolder.add(guiParams, "metalness", 0, 1, 0.01);
   materialFolder.addColor(guiParams, "color").onChange((v) => { material.color.set(v); });
   materialFolder.open();
 
   const lightFolder = gui.addFolder("Point Light");
-  const lightXCtrl = lightFolder.add(guiParams, "lightX", -2, 2, 0.01).onChange((v) => { pointLight.position.x = v; });
-  const lightYCtrl = lightFolder.add(guiParams, "lightY", -2, 2, 0.01).onChange((v) => { pointLight.position.y = v; });
-  const lightZCtrl = lightFolder.add(guiParams, "lightZ", 0, 5, 0.01).onChange((v) => { pointLight.position.z = v; });
-  const lightIntensityCtrl = lightFolder.add(guiParams, "lightIntensity", 0, 20, 0.1).name("brightness").onChange((v) => { pointLight.intensity = v; });
+  const lightXCtrl = lightFolder.add(guiParams, "lightX", -2, 2, 0.01);
+  const lightYCtrl = lightFolder.add(guiParams, "lightY", -2, 2, 0.01);
+  const lightZCtrl = lightFolder.add(guiParams, "lightZ", 0, 5, 0.01);
+  const lightIntensityCtrl = lightFolder.add(guiParams, "lightIntensity", 0, 20, 0.1).name("brightness");
   lightFolder.open();
 
   const displacementFolder = gui.addFolder("Displacement");
-  const reliefCtrl = displacementFolder.add(guiParams, "reliefHeight", 0, 0.6, 0.005).name("depth map amount").onChange((v) => { applyReliefHeight(v, { ripple: true }); });
+  const reliefCtrl = displacementFolder.add(guiParams, "reliefHeight", 0, 0.6, 0.005).name("depth map amount");
   displacementFolder.open();
 
   // ---------- post-processing (bloom) ----------
@@ -172,28 +172,47 @@ async function init() {
   guiParams.bloomThreshold = BLOOM_THRESHOLD;
 
   const bloomFolder = gui.addFolder("Bloom");
-  const bloomStrengthCtrl = bloomFolder.add(guiParams, "bloomStrength", 0, 3, 0.01).name("amount").onChange((v) => { bloomPass.strength.value = v; });
-  const bloomThresholdCtrl = bloomFolder.add(guiParams, "bloomThreshold", 0, 1, 0.01).name("threshold").onChange((v) => { bloomPass.threshold.value = v; });
+  const bloomStrengthCtrl = bloomFolder.add(guiParams, "bloomStrength", 0, 3, 0.01).name("amount");
+  const bloomThresholdCtrl = bloomFolder.add(guiParams, "bloomThreshold", 0, 1, 0.01).name("threshold");
   bloomFolder.open();
 
   // ---------- animators ----------
-  // Each animator drives one target parameter as base + amount*sin(2*pi*freq*t),
+  // Each animator drives one target parameter as base + amount*sin(2*pi*speed*t),
   // reusing that parameter's own controller (so its slider updates live and
-  // the existing onChange logic still applies the value everywhere it needs
-  // to go — including the depth-map's ripple-on-change behavior).
+  // whatever it's wired to — material, light, bloom, the depth-map's
+  // ripple-on-change — still applies). "base" tracks whatever value was last
+  // set by hand, not a fixed default: dragging a slider while its animator is
+  // off re-centers future oscillation on the new value, and turning an
+  // animator off snaps its target back to that last manually-set value
+  // rather than leaving it wherever the sine wave stopped.
+  let animatingNow = false;
+
   const animatableTargets = [
-    { key: "roughness", label: "Material: Roughness", base: guiParams.roughness, ampMax: 0.5, controller: roughnessCtrl },
-    { key: "metalness", label: "Material: Metalness", base: guiParams.metalness, ampMax: 0.5, controller: metalnessCtrl },
-    { key: "lightX", label: "Point Light: X", base: guiParams.lightX, ampMax: 2, controller: lightXCtrl },
-    { key: "lightY", label: "Point Light: Y", base: guiParams.lightY, ampMax: 2, controller: lightYCtrl },
-    { key: "lightZ", label: "Point Light: Z", base: guiParams.lightZ, ampMax: 2.5, controller: lightZCtrl },
-    { key: "lightIntensity", label: "Point Light: Brightness", base: guiParams.lightIntensity, ampMax: 10, controller: lightIntensityCtrl },
-    { key: "reliefHeight", label: "Displacement: Depth Map Amount", base: guiParams.reliefHeight, ampMax: 0.3, controller: reliefCtrl },
-    { key: "bloomStrength", label: "Bloom: Amount", base: guiParams.bloomStrength, ampMax: 1.5, controller: bloomStrengthCtrl },
-    { key: "bloomThreshold", label: "Bloom: Threshold", base: guiParams.bloomThreshold, ampMax: 0.5, controller: bloomThresholdCtrl },
+    { key: "roughness", label: "Material: Roughness", base: guiParams.roughness, ampMax: 0.5, controller: roughnessCtrl, apply: (v) => { material.roughness = v; } },
+    { key: "metalness", label: "Material: Metalness", base: guiParams.metalness, ampMax: 0.5, controller: metalnessCtrl, apply: (v) => { material.metalness = v; } },
+    { key: "lightX", label: "Point Light: X", base: guiParams.lightX, ampMax: 2, controller: lightXCtrl, apply: (v) => { pointLight.position.x = v; } },
+    { key: "lightY", label: "Point Light: Y", base: guiParams.lightY, ampMax: 2, controller: lightYCtrl, apply: (v) => { pointLight.position.y = v; } },
+    { key: "lightZ", label: "Point Light: Z", base: guiParams.lightZ, ampMax: 2.5, controller: lightZCtrl, apply: (v) => { pointLight.position.z = v; } },
+    { key: "lightIntensity", label: "Point Light: Brightness", base: guiParams.lightIntensity, ampMax: 10, controller: lightIntensityCtrl, apply: (v) => { pointLight.intensity = v; } },
+    { key: "reliefHeight", label: "Displacement: Depth Map Amount", base: guiParams.reliefHeight, ampMax: 0.3, controller: reliefCtrl, apply: (v) => { applyReliefHeight(v, { ripple: !animatingNow }); } },
+    { key: "bloomStrength", label: "Bloom: Amount", base: guiParams.bloomStrength, ampMax: 1.5, controller: bloomStrengthCtrl, apply: (v) => { bloomPass.strength.value = v; } },
+    { key: "bloomThreshold", label: "Bloom: Threshold", base: guiParams.bloomThreshold, ampMax: 0.5, controller: bloomThresholdCtrl, apply: (v) => { bloomPass.threshold.value = v; } },
   ];
   const targetOptions = {};
   animatableTargets.forEach((t) => { targetOptions[t.label] = t.key; });
+
+  function setTargetValue(target, v) {
+    animatingNow = true;
+    target.controller.setValue(v);
+    animatingNow = false;
+  }
+
+  animatableTargets.forEach((target) => {
+    target.controller.onChange((v) => {
+      target.apply(v);
+      if (!animatingNow) target.base = v;
+    });
+  });
 
   const animators = [];
   const animatorsFolder = gui.addFolder("Animators");
@@ -203,26 +222,35 @@ async function init() {
 
   function addAnimator() {
     animatorCount++;
-    const target = animatableTargets[0];
-    const state = { targetKey: target.key, amount: 0, speed: 0.5, enabled: true };
+    let currentTarget = animatableTargets[0];
+    const state = { targetKey: currentTarget.key, amount: 0, speed: 0.5, enabled: true };
     const sub = animatorsFolder.addFolder(`Animator ${animatorCount}`);
 
     const targetCtrl = sub.add(state, "targetKey", targetOptions).name("parameter");
-    const amountCtrl = sub.add(state, "amount", 0, target.ampMax, target.ampMax / 200).name("amount");
+    const amountCtrl = sub.add(state, "amount", 0, currentTarget.ampMax, currentTarget.ampMax / 200).name("amount");
     sub.add(state, "speed", 0, 3, 0.01).name("speed");
-    sub.add(state, "enabled");
+    const enabledCtrl = sub.add(state, "enabled");
 
     targetCtrl.onChange((key) => {
-      const t = animatableTargets.find((a) => a.key === key);
-      amountCtrl.max(t.ampMax);
-      if (state.amount > t.ampMax) {
-        state.amount = t.ampMax;
+      // Snap the previous target back to its own last manual value before
+      // handing control to the newly-selected one.
+      setTargetValue(currentTarget, currentTarget.base);
+
+      currentTarget = animatableTargets.find((a) => a.key === key);
+      amountCtrl.max(currentTarget.ampMax);
+      if (state.amount > currentTarget.ampMax) {
+        state.amount = currentTarget.ampMax;
         amountCtrl.updateDisplay();
       }
     });
 
+    enabledCtrl.onChange((isOn) => {
+      if (!isOn) setTargetValue(currentTarget, currentTarget.base);
+    });
+
     sub.add({
       remove: () => {
+        if (state.enabled) setTargetValue(currentTarget, currentTarget.base);
         animatorsFolder.removeFolder(sub);
         const i = animators.indexOf(entry);
         if (i >= 0) animators.splice(i, 1);
@@ -243,7 +271,7 @@ async function init() {
       const target = animatableTargets.find((a) => a.key === state.targetKey);
       if (!target) continue;
       const v = target.base + state.amount * Math.sin(2 * Math.PI * state.speed * t);
-      target.controller.setValue(v);
+      setTargetValue(target, v);
     }
   }
 
