@@ -62,6 +62,9 @@ async function init() {
   const PLANE_WIDTH = 1;
   const LOGO_ASPECT = 996 / 500;
   const LOGO_BAND_HEIGHT = PLANE_WIDTH / LOGO_ASPECT;
+  // Where the logo band's own center sits, as a fraction of viewport height
+  // down from the top. 0.5 = vertically centered.
+  const LOGO_CENTER_FRACTION = 0.5;
   const VERTEX_BUDGET = 45000;
   const RELIEF_HEIGHT = 0.04;
   // Ripple impulse per unit of relief-height change, weighted by the logo's
@@ -125,12 +128,13 @@ async function init() {
     // the plane's own size. Scale it down to a subtle emboss instead.
     newCloth.displacementScale = 0.8;
 
-    // Bake the logo into a vertically-centered band of the cloth's resting
-    // shape as a static depth target; everything outside the band stays
-    // flat (0).
+    // Bake the logo into a band near the top of the cloth's resting shape
+    // (centered at LOGO_CENTER_FRACTION down) as a static depth target;
+    // everything outside the band stays flat (0).
     const gridW = segX + 1;
     const bandRows = Math.max(1, Math.round(segY * (LOGO_BAND_HEIGHT / PLANE_HEIGHT)));
-    const bandStartRow = Math.round((segY - bandRows) / 2);
+    const bandCenterRow = Math.round(segY * LOGO_CENTER_FRACTION);
+    const bandStartRow = Math.max(0, Math.round(bandCenterRow - bandRows / 2));
     const pixels = sampleImageGrid(logoImage, gridW, bandRows + 1);
     const newLogoGray = new Float32Array(newCloth.count); // zero-filled outside the band
     for (let i = 0; i <= bandRows; i++) {
