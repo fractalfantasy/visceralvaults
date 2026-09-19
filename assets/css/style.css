@@ -67,7 +67,12 @@ a {
 main.wrap {
   position: relative;
   z-index: 1;
-  padding-top: 44vh;
+  margin-top: 44vh;
+  pointer-events: none;
+}
+
+main.wrap .release-grid {
+  pointer-events: auto;
 }
 
 .hero-fallback[hidden] {
