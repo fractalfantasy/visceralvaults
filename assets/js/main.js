@@ -47,7 +47,24 @@ function openModal(release) {
   }
 
   overlay.querySelector(".modal-date").textContent = formatDate(release.date);
-  overlay.querySelector(".modal-link").href = release.bandcamp;
+
+  const platforms = [
+    { key: "spotify", label: "Spotify" },
+    { key: "appleMusic", label: "Apple Music" },
+    { key: "youtube", label: "YouTube" },
+    { key: "bandcamp", label: "Bandcamp" },
+  ];
+
+  overlay.querySelector(".modal-platforms").innerHTML = platforms
+    .filter((p) => release[p.key])
+    .map(
+      (p) => `
+        <a class="platform-link" href="${release[p.key]}" target="_blank" rel="noopener" aria-label="Listen on ${p.label}" title="${p.label}">
+          <img src="https://cdn.simpleicons.org/${p.key.toLowerCase()}/ffffff" alt="${p.label}" loading="lazy">
+        </a>
+      `
+    )
+    .join("");
 
   const playerHeight = 120 + release.tracks.length * 48;
   const player = overlay.querySelector(".modal-player");
