@@ -1,4 +1,5 @@
 import * as THREE from "three/webgpu";
+import { bloom } from "three/addons/tsl/display/BloomNode.js";
 import { GUI } from "dat.gui";
 import { Cloth } from "./cloth.js";
 
@@ -84,7 +85,7 @@ async function init() {
     }
   }
 
-  const RELIEF_HEIGHT = 0.16;
+  const RELIEF_HEIGHT = 0.17;
   applyReliefHeight(RELIEF_HEIGHT);
 
   const scene = new THREE.Scene();
@@ -97,17 +98,17 @@ async function init() {
   camera.lookAt(0, 0, 0);
 
   const material = new THREE.MeshStandardMaterial({
-    color: 0x2b2d33,
-    roughness: 0.6,
-    metalness: 0.05,
+    color: 0x000000,
+    roughness: 0.37,
+    metalness: 0.78,
     side: THREE.DoubleSide,
   });
 
   const mesh = new THREE.Mesh(cloth.geometry, material);
   scene.add(mesh);
 
-  const pointLight = new THREE.PointLight(0xffffff, 3, 0, 0);
-  pointLight.position.set(-0.55, 0.6, 1.3);
+  const pointLight = new THREE.PointLight(0xffffff, 20, 0, 0);
+  pointLight.position.set(-0.26, -0.09, 0.74);
   scene.add(pointLight);
 
   const ambient = new THREE.AmbientLight(0xffffff, 0.12);
@@ -143,6 +144,25 @@ async function init() {
   const displacementFolder = gui.addFolder("Displacement");
   displacementFolder.add(guiParams, "reliefHeight", 0, 0.6, 0.005).name("depth map amount").onChange((v) => { applyReliefHeight(v); });
   displacementFolder.open();
+
+  // ---------- post-processing (bloom) ----------
+  const postProcessing = new THREE.PostProcessing(renderer);
+  const scenePass = THREE.pass(scene, camera);
+  const sceneColor = scenePass.getTextureNode();
+
+  const BLOOM_STRENGTH = 0.6;
+  const BLOOM_RADIUS = 0.4;
+  const BLOOM_THRESHOLD = 0.15;
+  const bloomPass = bloom(sceneColor, BLOOM_STRENGTH, BLOOM_RADIUS, BLOOM_THRESHOLD);
+  postProcessing.outputNode = sceneColor.add(bloomPass);
+
+  guiParams.bloomStrength = BLOOM_STRENGTH;
+  guiParams.bloomThreshold = BLOOM_THRESHOLD;
+
+  const bloomFolder = gui.addFolder("Bloom");
+  bloomFolder.add(guiParams, "bloomStrength", 0, 3, 0.01).name("amount").onChange((v) => { bloomPass.strength.value = v; });
+  bloomFolder.add(guiParams, "bloomThreshold", 0, 1, 0.01).name("threshold").onChange((v) => { bloomPass.threshold.value = v; });
+  bloomFolder.open();
 
   // ---------- pointer interaction ----------
   // Orthographic camera looking straight on, so screen UV maps linearly
@@ -211,7 +231,7 @@ async function init() {
     lastTime = now;
 
     cloth.update(dt);
-    await renderer.renderAsync(scene, camera);
+    await postProcessing.renderAsync();
 
     raf = requestAnimationFrame(frame);
   }
