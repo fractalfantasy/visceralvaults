@@ -395,8 +395,15 @@ async function init() {
     lastLocalY = y;
   }
 
-  canvas.addEventListener("pointermove", onPointerMove);
+  // touch-action:none (CSS) is what actually stops touch-drags from
+  // scrolling the page; preventDefault here is just backup for browsers
+  // that still try to turn a drag into a scroll/refresh gesture anyway.
+  canvas.addEventListener("pointermove", (e) => {
+    e.preventDefault();
+    onPointerMove(e);
+  });
   canvas.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
     const { x, y } = localFromEvent(e);
     cloth.applyForce(x, y, pointerParams.radius * 1.4, MAX_FORCE * pointerParams.strength);
     lastLocalX = x;

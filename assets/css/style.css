@@ -56,6 +56,10 @@ a {
   width: 100%;
   height: 100%;
   display: block;
+  /* Without this, touch-dragging on the canvas scrolls/bounces the page
+     instead of poking the liquid — there's nothing to scroll to anyway
+     now that the release grid is a toggled overlay, not page content. */
+  touch-action: none;
 }
 
 .hero-fallback {
