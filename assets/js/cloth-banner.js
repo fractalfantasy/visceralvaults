@@ -540,11 +540,13 @@ async function init() {
     },
   }, "save").name("+ save preset");
 
-  rebuildPresetDropdown(DEFAULT_PRESET_NAME);
-  // A localStorage override of the default preset (from "+ save preset")
-  // was saved after the material was already built with the hardcoded
-  // built-in values, so apply it now to make the override actually load.
-  if (customPresets[DEFAULT_PRESET_NAME]) applyPreset(customPresets[DEFAULT_PRESET_NAME]);
+  const allPresetNames = Object.keys({ ...BUILT_IN_PRESETS, ...customPresets });
+  const startupPresetName = allPresetNames[Math.floor(Math.random() * allPresetNames.length)];
+  rebuildPresetDropdown(startupPresetName);
+  // The scene was already built with the built-in default's hardcoded
+  // values, so apply the (possibly different, possibly overridden) chosen
+  // preset now to make sure what's on screen actually matches the dropdown.
+  applyPreset(resolvePreset(startupPresetName));
 
   // ---------- animators ----------
   // Each animator drives one target parameter as base + amount*sin(2*pi*speed*t),
