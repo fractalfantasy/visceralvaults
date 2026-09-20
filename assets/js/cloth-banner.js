@@ -90,6 +90,55 @@ function computeTightBounds(img, threshold = 15) {
   return { x: cx0, y: cy0, width: cx1 - cx0, height: cy1 - cy0 };
 }
 
+// Baked into the repo (like data/releases.json) so every visitor sees the
+// same curated presets with no backend — new ones get added by saving
+// locally, exporting, and committing them here. Only used as a last-resort
+// fallback if that fetch fails; see loadSharedPresets().
+const FALLBACK_PRESET = {
+  roughness: 0.34,
+  metalness: 0.48,
+  color: "#ff0000",
+  refraction: true,
+  ior: 2.333,
+  dispersion: 1.84,
+  thickness: 0,
+  envMap: "https://fractalfantasy.net/waterball/build/pano/pano36.jpg",
+  lightX: -0.85,
+  lightY: 1.08,
+  lightZ: 0.57,
+  lightIntensity: 4.1,
+  logoImage: "vvlogoblur-tight.png",
+  reliefHeight: 0.04,
+  pointerRadius: 0.155,
+  pointerStrength: 0.025,
+  meshResolution: 45000,
+  bloomStrength: 1,
+  bloomRadius: 0.41,
+  bloomThreshold: 0.85,
+  bloomSoftness: 0.01,
+};
+
+const PRESETS_STORAGE_KEY = "vv-presets";
+
+async function loadSharedPresets() {
+  try {
+    const res = await fetch("data/presets.json");
+    const presets = await res.json();
+    if (presets && Object.keys(presets).length > 0) return presets;
+  } catch {
+    // fall through to the fallback below
+  }
+  return { "Red Candy Paint": FALLBACK_PRESET };
+}
+
+function loadCustomPresets() {
+  try {
+    return JSON.parse(localStorage.getItem(PRESETS_STORAGE_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
+
 async function init() {
   // MSAA sample count is baked into the post-processing pipeline the first
   // time it compiles, so toggling it live isn't reliable — the GUI checkbox
@@ -99,6 +148,17 @@ async function init() {
   await renderer.init();
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 
+  // Shared presets are baked into the repo and the same for every visitor;
+  // custom ones are saved locally (per browser, via the Presets folder) and
+  // take priority over a shared preset of the same name. One of the pooled
+  // presets is picked at random below to seed the initial look.
+  const sharedPresets = await loadSharedPresets();
+  const customPresets = loadCustomPresets();
+  const startupPresetPool = { ...sharedPresets, ...customPresets };
+  const startupPresetNames = Object.keys(startupPresetPool);
+  const startupPresetName = startupPresetNames[Math.floor(Math.random() * startupPresetNames.length)];
+  const startupPreset = startupPresetPool[startupPresetName];
+
   const LOGO_IMAGE_BASE = "assets/img/site/";
   const logoImageOptions = {
     "Blur (tight)": "vvlogoblur-tight.png",
@@ -106,7 +166,7 @@ async function init() {
     "Blur 2": "vvlogoblur2.png",
     "Blur 3": "vvlogoblur3.png",
   };
-  let logoImage = await loadImage(LOGO_IMAGE_BASE + logoImageOptions["Blur (tight)"]);
+  let logoImage = await loadImage(LOGO_IMAGE_BASE + startupPreset.logoImage);
   let logoCrop = computeTightBounds(logoImage);
 
   // The banner is a fixed full-viewport background, so the mesh matches the
@@ -123,10 +183,11 @@ async function init() {
   // down from the top. 0.5 = vertically centered.
   const LOGO_CENTER_FRACTION = 0.5;
   // Touch/coarse-pointer devices skew toward weaker GPUs, so start them at
-  // the Mesh folder's "Low" resolution instead of the desktop default.
+  // the Mesh folder's "Low" resolution regardless of what the preset asks
+  // for.
   const IS_MOBILE = window.matchMedia("(pointer: coarse)").matches;
-  let VERTEX_BUDGET = IS_MOBILE ? 12000 : 45000;
-  const RELIEF_HEIGHT = 0.04;
+  let VERTEX_BUDGET = IS_MOBILE ? 12000 : startupPreset.meshResolution;
+  const RELIEF_HEIGHT = startupPreset.reliefHeight;
   // Ripple impulse per unit of relief-height change, weighted by the logo's
   // own shape (so a slider move pokes the cloth roughly like a full-strength
   // pointer poke would at the max slider range, scaled down for smaller
@@ -146,14 +207,14 @@ async function init() {
   camera.lookAt(0, 0, 0);
 
   const material = new THREE.MeshPhysicalMaterial({
-    color: 0xff0000,
-    roughness: 0.34,
-    metalness: 0.48,
+    color: startupPreset.color,
+    roughness: startupPreset.roughness,
+    metalness: startupPreset.metalness,
     side: THREE.DoubleSide,
-    transmission: 1,
-    ior: 2.333,
-    dispersion: 1.84,
-    thickness: 0,
+    transmission: startupPreset.refraction ? 1 : 0,
+    ior: startupPreset.ior,
+    dispersion: startupPreset.dispersion,
+    thickness: startupPreset.thickness,
   });
 
   function applyReliefHeight(height, { ripple = false } = {}) {
@@ -229,8 +290,8 @@ async function init() {
 
   buildCloth();
 
-  const pointLight = new THREE.PointLight(0xffffff, 4.1, 0, 0);
-  pointLight.position.set(-0.85, 1.08, 0.57);
+  const pointLight = new THREE.PointLight(0xffffff, startupPreset.lightIntensity, 0, 0);
+  pointLight.position.set(startupPreset.lightX, startupPreset.lightY, startupPreset.lightZ);
   scene.add(pointLight);
 
   const ambient = new THREE.AmbientLight(0xffffff, 0.12);
@@ -250,7 +311,7 @@ async function init() {
 
   // Mutable so the pointer-interaction code (defined further down) can read
   // whatever the GUI slider is currently set to.
-  const pointerParams = { radius: 0.155, strength: 0.025 };
+  const pointerParams = { radius: startupPreset.pointerRadius, strength: startupPreset.pointerStrength };
 
   // dat.gui's auto-scroll ("taller than window") math assumes the panel is
   // anchored from the top of the screen and clamps its open height to the
@@ -355,7 +416,7 @@ async function init() {
     });
   }
 
-  guiParams.envMap = envMapOptions["Pano 36"];
+  guiParams.envMap = startupPreset.envMap;
   const envFolder = gui.addFolder("Environment");
   const envMapCtrl = envFolder.add(guiParams, "envMap", envMapOptions).name("env map").onChange(setEnvMap);
   setEnvMap(guiParams.envMap);
@@ -367,7 +428,7 @@ async function init() {
   const lightIntensityCtrl = lightFolder.add(guiParams, "lightIntensity", 0, 20, 0.1).name("brightness");
 
   const displacementFolder = gui.addFolder("Displacement");
-  guiParams.logoImage = logoImageOptions["Blur (tight)"];
+  guiParams.logoImage = startupPreset.logoImage;
   const logoImageCtrl = displacementFolder.add(guiParams, "logoImage", logoImageOptions).name("displacement image").onChange(async (filename) => {
     logoImage = await loadImage(LOGO_IMAGE_BASE + filename);
     logoCrop = computeTightBounds(logoImage);
@@ -484,27 +545,11 @@ async function init() {
     }
   }
 
-  const PRESETS_STORAGE_KEY = "vv-presets";
-  const DEFAULT_PRESET_NAME = "Red Candy Paint";
-  const BUILT_IN_PRESETS = {
-    [DEFAULT_PRESET_NAME]: getPresetSnapshot(), // captures the values the scene was just built with, above
-  };
-
-  function loadCustomPresets() {
-    try {
-      return JSON.parse(localStorage.getItem(PRESETS_STORAGE_KEY)) || {};
-    } catch {
-      return {};
-    }
-  }
-
-  let customPresets = loadCustomPresets();
-
-  // A saved custom preset always wins over a built-in of the same name, so
-  // overwriting "Red Candy Paint" (a built-in) sticks — the override is
-  // what's in localStorage, not the hardcoded snapshot taken at load time.
+  // A saved custom preset always wins over a shared one of the same name,
+  // so overwriting e.g. "Red Candy Paint" sticks locally — the override is
+  // what's in localStorage, not the version baked into data/presets.json.
   function resolvePreset(name) {
-    return customPresets[name] || BUILT_IN_PRESETS[name];
+    return customPresets[name] || sharedPresets[name];
   }
 
   function saveCurrentAsPreset(name) {
@@ -515,7 +560,7 @@ async function init() {
   let presetCtrl = null;
   function rebuildPresetDropdown(selected) {
     if (presetCtrl) presetsFolder.remove(presetCtrl);
-    const options = Object.keys({ ...BUILT_IN_PRESETS, ...customPresets });
+    const options = Object.keys({ ...sharedPresets, ...customPresets });
     guiParams.preset = selected;
     presetCtrl = presetsFolder.add(guiParams, "preset", options).name("load preset").onChange((name) => {
       applyPreset(resolvePreset(name));
@@ -540,13 +585,10 @@ async function init() {
     },
   }, "save").name("+ save preset");
 
-  const allPresetNames = Object.keys({ ...BUILT_IN_PRESETS, ...customPresets });
-  const startupPresetName = allPresetNames[Math.floor(Math.random() * allPresetNames.length)];
+  // The scene was already built from startupPreset's values directly (see
+  // top of init()), so this just makes the dropdown reflect that choice —
+  // no need to re-apply it.
   rebuildPresetDropdown(startupPresetName);
-  // The scene was already built with the built-in default's hardcoded
-  // values, so apply the (possibly different, possibly overridden) chosen
-  // preset now to make sure what's on screen actually matches the dropdown.
-  applyPreset(resolvePreset(startupPresetName));
 
   // ---------- animators ----------
   // Each animator drives one target parameter as base + amount*sin(2*pi*speed*t),

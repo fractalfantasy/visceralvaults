@@ -1,0 +1,25 @@
+{
+  "Red Candy Paint": {
+    "roughness": 0.34,
+    "metalness": 0.48,
+    "color": "#ff0000",
+    "refraction": true,
+    "ior": 2.333,
+    "dispersion": 1.84,
+    "thickness": 0,
+    "envMap": "https://fractalfantasy.net/waterball/build/pano/pano36.jpg",
+    "lightX": -0.85,
+    "lightY": 1.08,
+    "lightZ": 0.57,
+    "lightIntensity": 4.1,
+    "logoImage": "vvlogoblur-tight.png",
+    "reliefHeight": 0.04,
+    "pointerRadius": 0.155,
+    "pointerStrength": 0.025,
+    "meshResolution": 45000,
+    "bloomStrength": 1,
+    "bloomRadius": 0.41,
+    "bloomThreshold": 0.85,
+    "bloomSoftness": 0.01
+  }
+}
