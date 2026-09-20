@@ -155,6 +155,15 @@ main.wrap.open {
   margin: 0 !important;
 }
 
+/* dat.gui sizes its own rows in pixels assuming the browser default
+   content-box model; the site-wide border-box reset above shrinks the
+   padding/border into that width instead of adding to it, so a row's
+   contents (label + slider + number field) end up wider than the panel
+   and force a horizontal scrollbar. */
+.dg, .dg * {
+  box-sizing: content-box;
+}
+
 .hero-fallback[hidden] {
   display: none;
 }

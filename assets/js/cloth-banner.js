@@ -6,6 +6,11 @@ import { Cloth } from "./cloth.js";
 const canvas = document.getElementById("liquid-canvas");
 const fallback = document.querySelector(".hero-fallback");
 
+const AA_STORAGE_KEY = "vv-antialias";
+function getAntialiasPref() {
+  return localStorage.getItem(AA_STORAGE_KEY) !== "off"; // on by default
+}
+
 function showFallback() {
   if (canvas) canvas.hidden = true;
   if (fallback) fallback.hidden = false;
@@ -46,7 +51,11 @@ function sampleImageGrid(img, gridW, gridH) {
 }
 
 async function init() {
-  const renderer = new THREE.WebGPURenderer({ canvas, antialias: true, alpha: false });
+  // MSAA sample count is baked into the post-processing pipeline the first
+  // time it compiles, so toggling it live isn't reliable — the GUI checkbox
+  // instead stores a preference and reloads the page to apply it cleanly.
+  const antialias = getAntialiasPref();
+  const renderer = new THREE.WebGPURenderer({ canvas, antialias, alpha: false });
   await renderer.init();
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 
@@ -65,7 +74,7 @@ async function init() {
   // Where the logo band's own center sits, as a fraction of viewport height
   // down from the top. 0.5 = vertically centered.
   const LOGO_CENTER_FRACTION = 0.5;
-  const VERTEX_BUDGET = 45000;
+  let VERTEX_BUDGET = 45000;
   const RELIEF_HEIGHT = 0.04;
   // Ripple impulse per unit of relief-height change, weighted by the logo's
   // own shape (so a slider move pokes the cloth roughly like a full-strength
@@ -194,23 +203,32 @@ async function init() {
   const roughnessCtrl = materialFolder.add(guiParams, "roughness", 0, 1, 0.01);
   const metalnessCtrl = materialFolder.add(guiParams, "metalness", 0, 1, 0.01);
   materialFolder.addColor(guiParams, "color").onChange((v) => { material.color.set(v); });
-  materialFolder.open();
 
   const lightFolder = gui.addFolder("Point Light");
   const lightXCtrl = lightFolder.add(guiParams, "lightX", -2, 2, 0.01);
   const lightYCtrl = lightFolder.add(guiParams, "lightY", -2, 2, 0.01);
   const lightZCtrl = lightFolder.add(guiParams, "lightZ", 0, 5, 0.01);
   const lightIntensityCtrl = lightFolder.add(guiParams, "lightIntensity", 0, 20, 0.1).name("brightness");
-  lightFolder.open();
 
   const displacementFolder = gui.addFolder("Displacement");
   const reliefCtrl = displacementFolder.add(guiParams, "reliefHeight", 0, 0.6, 0.005).name("depth map amount");
-  displacementFolder.open();
 
   const pointerFolder = gui.addFolder("Pointer");
   pointerFolder.add(pointerParams, "radius", 0.01, 0.3, 0.005).name("mouse size");
   pointerFolder.add(pointerParams, "strength", 0, 3, 0.01).name("liquid amount");
-  pointerFolder.open();
+
+  const meshFolder = gui.addFolder("Mesh");
+  const meshResolutionOptions = { Low: 12000, Medium: 45000, High: 110000, "Very High": 220000 };
+  guiParams.meshResolution = VERTEX_BUDGET;
+  meshFolder.add(guiParams, "meshResolution", meshResolutionOptions).name("resolution").onChange((v) => {
+    VERTEX_BUDGET = Number(v);
+    buildCloth();
+  });
+  guiParams.antialiasing = getAntialiasPref();
+  meshFolder.add(guiParams, "antialiasing").name("antialiasing (reloads)").onChange((v) => {
+    localStorage.setItem(AA_STORAGE_KEY, v ? "on" : "off");
+    location.reload();
+  });
 
   // ---------- post-processing (bloom) ----------
   const postProcessing = new THREE.PostProcessing(renderer);
@@ -224,12 +242,15 @@ async function init() {
   postProcessing.outputNode = sceneColor.add(bloomPass);
 
   guiParams.bloomStrength = BLOOM_STRENGTH;
+  guiParams.bloomRadius = BLOOM_RADIUS;
+  guiParams.bloomSoftness = bloomPass.smoothWidth.value;
   guiParams.bloomThreshold = BLOOM_THRESHOLD;
 
   const bloomFolder = gui.addFolder("Bloom");
   const bloomStrengthCtrl = bloomFolder.add(guiParams, "bloomStrength", 0, 3, 0.01).name("amount");
+  const bloomRadiusCtrl = bloomFolder.add(guiParams, "bloomRadius", 0, 1, 0.01).name("radius").onChange((v) => { bloomPass.radius.value = v; });
   const bloomThresholdCtrl = bloomFolder.add(guiParams, "bloomThreshold", 0, 1, 0.01).name("threshold");
-  bloomFolder.open();
+  const bloomSoftnessCtrl = bloomFolder.add(guiParams, "bloomSoftness", 0, 0.5, 0.005).name("gradient softness").onChange((v) => { bloomPass.smoothWidth.value = v; });
 
   // ---------- animators ----------
   // Each animator drives one target parameter as base + amount*sin(2*pi*speed*t),
@@ -280,7 +301,6 @@ async function init() {
 
   const animators = [];
   const animatorsFolder = gui.addFolder("Animators");
-  animatorsFolder.open();
 
   let animatorCount = 0;
 
@@ -328,13 +348,13 @@ async function init() {
       },
     }, "remove").name("− remove");
 
-    sub.open();
+    if (initial.open) sub.open();
 
     const entry = { state };
     animators.push(entry);
   }
 
-  animatorsFolder.add({ addAnimator }, "addAnimator").name("+ Add Animator");
+  animatorsFolder.add({ addAnimator: () => addAnimator({ open: true }) }, "addAnimator").name("+ Add Animator");
 
   addAnimator({ targetKey: "reliefHeight", amount: 0.037, speed: 0.24 });
   addAnimator({ targetKey: "lightX", amount: 0.49, speed: 0.13 });
