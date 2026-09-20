@@ -215,7 +215,7 @@ async function init() {
 
   const pointerFolder = gui.addFolder("Pointer");
   pointerFolder.add(pointerParams, "radius", 0.01, 0.3, 0.005).name("mouse size");
-  pointerFolder.add(pointerParams, "strength", 0, 3, 0.01).name("liquid amount");
+  pointerFolder.add(pointerParams, "strength", 0, 0.2, 0.005).name("liquid amount");
 
   const meshFolder = gui.addFolder("Mesh");
   const meshResolutionOptions = { Low: 12000, Medium: 45000, High: 110000, "Very High": 220000 };
