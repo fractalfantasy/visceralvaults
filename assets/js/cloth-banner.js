@@ -7,11 +7,6 @@ import { VerletCloth } from "./verlet-cloth.js";
 const canvas = document.getElementById("liquid-canvas");
 const fallback = document.querySelector(".hero-fallback");
 
-const AA_STORAGE_KEY = "vv-antialias";
-function getAntialiasPref() {
-  return localStorage.getItem(AA_STORAGE_KEY) !== "off"; // on by default
-}
-
 function showFallback() {
   if (canvas) canvas.hidden = true;
   if (fallback) fallback.hidden = false;
@@ -141,11 +136,7 @@ function loadCustomPresets() {
 }
 
 async function init() {
-  // MSAA sample count is baked into the post-processing pipeline the first
-  // time it compiles, so toggling it live isn't reliable — the GUI checkbox
-  // instead stores a preference and reloads the page to apply it cleanly.
-  const antialias = getAntialiasPref();
-  const renderer = new THREE.WebGPURenderer({ canvas, antialias, alpha: false });
+  const renderer = new THREE.WebGPURenderer({ canvas, antialias: true, alpha: false });
   await renderer.init();
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 
@@ -198,7 +189,7 @@ async function init() {
   // The cloth sim's folds read fine at a much lower vertex count than the
   // logo relief needs, and it's off by default, so this stays fixed rather
   // than following the liquid mesh's own resolution setting.
-  const CLOTH_VERTEX_BUDGET = IS_MOBILE ? 300 : 800;
+  let CLOTH_VERTEX_BUDGET = IS_MOBILE ? 300 : 800;
   const RELIEF_HEIGHT = startupPreset.reliefHeight;
   // Ripple impulse per unit of relief-height change, weighted by the logo's
   // own shape (so a slider move pokes the cloth roughly like a full-strength
@@ -232,6 +223,11 @@ async function init() {
     wind: 0.25,
     damping: 0.98,
   };
+
+  // Master on/off for the liquid mesh, mirroring clothSimParams.enabled —
+  // skips cloth.update(dt) in the render loop entirely while off, not just
+  // hiding the mesh.
+  let liquidEnabled = true;
 
   let PLANE_HEIGHT;
   let cloth;
@@ -300,9 +296,10 @@ async function init() {
   // viewport aspect, swapping the mesh in place. Safe to call repeatedly —
   // used both for the initial setup and every time the aspect settles after
   // a resize.
-  function buildCloth() {
-    PLANE_HEIGHT = window.innerHeight / window.innerWidth;
-
+  // Rebuilds just the liquid mesh at VERTEX_BUDGET's current resolution —
+  // split out from buildClothMesh() so changing one mesh's resolution
+  // doesn't also rebuild the other.
+  function buildLiquidMesh() {
     // Keep total vertex count roughly constant regardless of aspect, so a
     // tall/narrow mobile viewport doesn't end up with far more vertices (and
     // a much heavier per-frame simulation) than a wide desktop one.
@@ -345,8 +342,12 @@ async function init() {
     applyReliefHeight(reliefHeightValue);
 
     mesh = new THREE.Mesh(cloth.geometry, material);
+    mesh.visible = liquidEnabled;
     scene.add(mesh);
+  }
 
+  // Rebuilds just the cloth-sim mesh — see buildLiquidMesh() above.
+  function buildClothMesh() {
     const clothSegX = Math.max(10, Math.round(Math.sqrt(CLOTH_VERTEX_BUDGET / PLANE_HEIGHT)));
     const clothSegY = Math.max(6, Math.round(clothSegX * PLANE_HEIGHT));
     if (clothMesh) {
@@ -385,7 +386,17 @@ async function init() {
     clothMesh.position.z = 0.02; // clears the liquid mesh's own surface if both are shown at once
     clothMesh.visible = clothSimParams.enabled;
     scene.add(clothMesh);
+  }
 
+  // Rebuilds both meshes and refits the camera — used for the initial setup
+  // and on resize, where the viewport aspect (and so both meshes' segment
+  // counts) actually changes. A resolution-dropdown change only needs to
+  // rebuild its own mesh, so those call buildLiquidMesh()/buildClothMesh()
+  // directly instead.
+  function buildCloth() {
+    PLANE_HEIGHT = window.innerHeight / window.innerWidth;
+    buildLiquidMesh();
+    buildClothMesh();
     camera.top = PLANE_HEIGHT / 2;
     camera.bottom = -camera.top;
     camera.updateProjectionMatrix();
@@ -424,12 +435,27 @@ async function init() {
   // simplest to turn the feature off outright.
   const gui = new GUI({ scrollable: false });
 
+  // Added directly to the root gui (not a folder) so it renders as its own
+  // row above every folder, including Presets. Off by default — the fps
+  // value only gets computed/updated in the render loop while the checkbox
+  // is on, so there's no cost when it's not in use. `.listen()` is dat.gui's
+  // built-in "poll this property and keep the display live" mechanism.
+  guiParams.showFps = false;
+  gui.add(guiParams, "showFps").name("FPS counter");
+  guiParams.fps = 0;
+  gui.add(guiParams, "fps").name("fps").listen();
+
   // Populated near the end of init(), once every other controller exists to
   // wire a snapshot/apply system to — created here first just so it renders
   // at the top of the panel.
   const presetsFolder = gui.addFolder("Presets");
 
   const materialFolder = gui.addFolder("Liquid Material");
+  guiParams.liquidEnabled = liquidEnabled;
+  const liquidEnabledCtrl = materialFolder.add(guiParams, "liquidEnabled").name("enabled").onChange((v) => {
+    liquidEnabled = v;
+    mesh.visible = v;
+  });
   const roughnessCtrl = materialFolder.add(guiParams, "roughness", 0, 1, 0.01);
   const metalnessCtrl = materialFolder.add(guiParams, "metalness", 0, 1, 0.01);
   const colorCtrl = materialFolder.addColor(guiParams, "color").onChange((v) => { material.color.set(v); });
@@ -519,6 +545,31 @@ async function init() {
     });
   }
 
+  // The cloth material's own env map is a per-material override (rather
+  // than going through scene.environment like the liquid's) so the two can
+  // reflect different panoramas independently. It doesn't drive the
+  // background sphere — that stays tied to the liquid's choice, since one
+  // skybox is enough to give refraction something to bend.
+  let currentClothEnvTexture = null;
+  function setClothEnvMap(url) {
+    const previousTexture = currentClothEnvTexture;
+    if (!url) {
+      clothMaterial.envMap = null;
+      clothMaterial.needsUpdate = true;
+      currentClothEnvTexture = null;
+      if (previousTexture) previousTexture.dispose();
+      return;
+    }
+    textureLoader.load(url, (tex) => {
+      tex.mapping = THREE.EquirectangularReflectionMapping;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      clothMaterial.envMap = tex;
+      clothMaterial.needsUpdate = true;
+      currentClothEnvTexture = tex;
+      if (previousTexture) previousTexture.dispose();
+    });
+  }
+
   guiParams.envMap = startupPreset.envMap;
   const envMapCtrl = materialFolder.add(guiParams, "envMap", envMapOptions).name("env map").onChange(setEnvMap);
   setEnvMap(guiParams.envMap);
@@ -545,6 +596,11 @@ async function init() {
   // them, and the same scene-level environment (there's only one skybox;
   // both materials reflect/refract it automatically).
   const clothMaterialFolder = gui.addFolder("Cloth Material");
+  guiParams.clothEnabled = clothSimParams.enabled;
+  const clothEnabledCtrl = clothMaterialFolder.add(guiParams, "clothEnabled").name("enabled").onChange((v) => {
+    clothSimParams.enabled = v;
+    clothMesh.visible = v;
+  });
   guiParams.clothRoughness = clothMaterial.roughness;
   const clothRoughnessCtrl = clothMaterialFolder.add(guiParams, "clothRoughness", 0, 1, 0.01).name("roughness").onChange((v) => { clothMaterial.roughness = v; });
   guiParams.clothMetalness = clothMaterial.metalness;
@@ -571,6 +627,11 @@ async function init() {
     clothMaterial.thickness = v;
     clothMaterial.needsUpdate = true;
   });
+  // Defaults to None (no extra texture load) rather than mirroring the
+  // liquid's env map — independent by default, same as every other cloth
+  // material param.
+  guiParams.clothEnvMap = "";
+  const clothEnvMapCtrl = clothMaterialFolder.add(guiParams, "clothEnvMap", envMapOptions).name("env map").onChange(setClothEnvMap);
   guiParams.clothLogoImage = startupPreset.logoImage;
   const clothLogoImageCtrl = clothMaterialFolder.add(guiParams, "clothLogoImage", logoImageOptions).name("displacement image").onChange(async (filename) => {
     clothLogoImage = await loadImage(LOGO_IMAGE_BASE + filename);
@@ -620,11 +681,6 @@ async function init() {
   // hidden), so it costs nothing until switched on. Can be shown alongside
   // the liquid mesh or on its own.
   const clothSimFolder = gui.addFolder("Cloth Sim");
-  guiParams.clothEnabled = clothSimParams.enabled;
-  const clothEnabledCtrl = clothSimFolder.add(guiParams, "clothEnabled").name("enabled").onChange((v) => {
-    clothSimParams.enabled = v;
-    clothMesh.visible = v;
-  });
   guiParams.clothGravity = clothSimParams.gravity;
   const clothGravityCtrl = clothSimFolder.add(guiParams, "clothGravity", -2, 0, 0.01).name("gravity").onChange((v) => {
     clothSimParams.gravity = v;
@@ -641,22 +697,35 @@ async function init() {
     verletCloth.damping = v;
   });
 
-  const pointerFolder = gui.addFolder("Pointer");
-  const pointerRadiusCtrl = pointerFolder.add(pointerParams, "radius", 0.01, 0.3, 0.005).name("mouse size");
-  const pointerStrengthCtrl = pointerFolder.add(pointerParams, "strength", 0, 0.2, 0.005).name("liquid amount");
+  // "liquid amount" (how strongly the pointer disturbs the liquid) lives
+  // under Liquid Material since it's specific to that mesh's response;
+  // "mouse size" (interaction radius) affects both the liquid poke and the
+  // cloth grab radius, so it lives under Mesh instead, as a general/shared
+  // setting rather than a liquid-specific one.
+  const liquidPointerFolder = materialFolder.addFolder("Pointer");
+  const pointerStrengthCtrl = liquidPointerFolder.add(pointerParams, "strength", 0, 0.2, 0.005).name("liquid amount");
 
-  const meshFolder = gui.addFolder("Mesh");
   const meshResolutionOptions = { Low: 12000, Medium: 45000, High: 110000, "Very High": 220000 };
   guiParams.meshResolution = VERTEX_BUDGET;
-  const meshResolutionCtrl = meshFolder.add(guiParams, "meshResolution", meshResolutionOptions).name("resolution").onChange((v) => {
+  const meshResolutionCtrl = materialFolder.add(guiParams, "meshResolution", meshResolutionOptions).name("resolution").onChange((v) => {
     VERTEX_BUDGET = Number(v);
-    buildCloth();
+    buildLiquidMesh();
   });
-  guiParams.antialiasing = getAntialiasPref();
-  meshFolder.add(guiParams, "antialiasing").name("antialiasing (reloads)").onChange((v) => {
-    localStorage.setItem(AA_STORAGE_KEY, v ? "on" : "off");
-    location.reload();
+
+  // Much lower than the liquid's own tiers — a real 3D constraint-solved
+  // cloth costs far more per vertex than the liquid's cheap height field
+  // (iterative relaxation over ~4 constraints/vertex, every frame), so
+  // reusing the liquid's vertex counts here would get heavy fast.
+  const clothMeshResolutionOptions = { Low: 150, Medium: 400, High: 800, "Very High": 1600 };
+  guiParams.clothMeshResolution = CLOTH_VERTEX_BUDGET;
+  const clothMeshResolutionCtrl = clothMaterialFolder.add(guiParams, "clothMeshResolution", clothMeshResolutionOptions).name("resolution").onChange((v) => {
+    CLOTH_VERTEX_BUDGET = Number(v);
+    buildClothMesh();
   });
+
+  const meshFolder = gui.addFolder("Mesh");
+  const meshPointerFolder = meshFolder.addFolder("Pointer");
+  const pointerRadiusCtrl = meshPointerFolder.add(pointerParams, "radius", 0.01, 0.3, 0.005).name("mouse size");
 
   // ---------- post-processing (bloom) ----------
   const postProcessing = new THREE.PostProcessing(renderer);
@@ -743,10 +812,14 @@ async function init() {
       clothThickness: guiParams.clothThickness,
       clothLogoImage: guiParams.clothLogoImage,
       clothReliefHeight: guiParams.clothReliefHeight,
+      liquidEnabled: guiParams.liquidEnabled,
+      clothEnvMap: guiParams.clothEnvMap,
+      clothMeshResolution: guiParams.clothMeshResolution,
     };
   }
 
   const PRESET_CONTROLLERS = {
+    liquidEnabled: liquidEnabledCtrl,
     roughness: roughnessCtrl, metalness: metalnessCtrl, color: colorCtrl,
     refraction: refractionCtrl, ior: iorCtrl, dispersion: dispersionCtrl, thickness: thicknessCtrl,
     envMap: envMapCtrl, lightX: lightXCtrl, lightY: lightYCtrl, lightZ: lightZCtrl,
@@ -760,7 +833,9 @@ async function init() {
     clothWind: clothWindCtrl, clothDamping: clothDampingCtrl,
     clothRoughness: clothRoughnessCtrl, clothMetalness: clothMetalnessCtrl, clothColor: clothColorCtrl,
     clothRefraction: clothRefractionCtrl, clothIor: clothIorCtrl, clothDispersion: clothDispersionCtrl,
-    clothThickness: clothThicknessCtrl, clothLogoImage: clothLogoImageCtrl, clothReliefHeight: clothReliefCtrl,
+    clothThickness: clothThicknessCtrl, clothEnvMap: clothEnvMapCtrl,
+    clothLogoImage: clothLogoImageCtrl, clothReliefHeight: clothReliefCtrl,
+    clothMeshResolution: clothMeshResolutionCtrl,
   };
 
   function applyPreset(snapshot) {
@@ -1036,14 +1111,24 @@ async function init() {
   // ---------- render loop ----------
   let raf = null;
   let lastTime = performance.now();
+  let fpsSmoothed = 0;
 
   async function frame(now) {
     const dt = (now - lastTime) / 1000;
     lastTime = now;
 
     updateAnimators(now / 1000);
-    cloth.update(dt);
+    if (liquidEnabled) cloth.update(dt);
     if (clothSimParams.enabled) verletCloth.simulate(dt, now / 1000);
+
+    if (guiParams.showFps && dt > 0) {
+      const instantFps = 1 / dt;
+      fpsSmoothed = fpsSmoothed ? fpsSmoothed * 0.9 + instantFps * 0.1 : instantFps;
+      guiParams.fps = Math.round(fpsSmoothed);
+    } else if (guiParams.fps !== 0) {
+      guiParams.fps = 0;
+    }
+
     await postProcessing.renderAsync();
 
     raf = requestAnimationFrame(frame);
