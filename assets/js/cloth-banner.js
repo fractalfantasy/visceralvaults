@@ -522,13 +522,6 @@ async function init() {
     });
   }
 
-  presetsFolder.add({
-    save: () => {
-      if (!guiParams.preset) return;
-      saveCurrentAsPreset(guiParams.preset);
-    },
-  }, "save").name("+ save preset");
-
   guiParams.newPresetName = "";
   presetsFolder.add(guiParams, "newPresetName").name("new preset name");
   presetsFolder.add({
@@ -540,6 +533,12 @@ async function init() {
       rebuildPresetDropdown(name);
     },
   }, "save").name("+ save as preset");
+  presetsFolder.add({
+    save: () => {
+      if (!guiParams.preset) return;
+      saveCurrentAsPreset(guiParams.preset);
+    },
+  }, "save").name("+ save preset");
 
   rebuildPresetDropdown(DEFAULT_PRESET_NAME);
   // A localStorage override of the default preset (from "+ save preset")
