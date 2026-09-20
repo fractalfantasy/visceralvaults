@@ -95,13 +95,13 @@ async function init() {
   camera.lookAt(0, 0, 0);
 
   const material = new THREE.MeshPhysicalMaterial({
-    color: 0x161616,
-    roughness: 0.25,
-    metalness: 0.31,
+    color: 0xf7f7f7,
+    roughness: 0,
+    metalness: 1,
     side: THREE.DoubleSide,
-    transmission: 0,
-    ior: 1.5,
-    dispersion: 0,
+    transmission: 1,
+    ior: 2.333,
+    dispersion: 0.9,
   });
 
   function applyReliefHeight(height, { ripple = false } = {}) {
@@ -261,9 +261,10 @@ async function init() {
     });
   }
 
-  guiParams.envMap = "";
+  guiParams.envMap = envMapOptions["Pano 21"];
   const envFolder = gui.addFolder("Environment");
   envFolder.add(guiParams, "envMap", envMapOptions).name("env map").onChange(setEnvMap);
+  setEnvMap(guiParams.envMap);
 
   const lightFolder = gui.addFolder("Point Light");
   const lightXCtrl = lightFolder.add(guiParams, "lightX", -2, 2, 0.01);
@@ -296,8 +297,8 @@ async function init() {
   const scenePass = THREE.pass(scene, camera);
   const sceneColor = scenePass.getTextureNode();
 
-  const BLOOM_STRENGTH = 0.08;
-  const BLOOM_RADIUS = 0.4;
+  const BLOOM_STRENGTH = 0.01;
+  const BLOOM_RADIUS = 0.41;
   const BLOOM_THRESHOLD = 1;
   const bloomPass = bloom(sceneColor, BLOOM_STRENGTH, BLOOM_RADIUS, BLOOM_THRESHOLD);
   const bloomOutputNode = sceneColor.add(bloomPass);
