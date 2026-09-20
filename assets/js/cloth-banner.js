@@ -97,11 +97,19 @@ async function init() {
   const material = new THREE.MeshPhysicalMaterial({
     color: 0xf7f7f7,
     roughness: 0,
-    metalness: 1,
+    // Metals reflect 100% of incident light at the surface and transmit
+    // none, so diffuseColor (what transmission/refraction acts on) is
+    // physically zero once metalness reaches 1 — refraction is a dielectric
+    // (glass/water) effect, kept low here so it's actually visible.
+    metalness: 0.1,
     side: THREE.DoubleSide,
     transmission: 1,
     ior: 2.333,
     dispersion: 0.9,
+    // The refraction ray is (refraction direction) * thickness — with the
+    // default thickness of 0 that ray has zero length, so IOR only ever
+    // affects Fresnel-based reflectivity, never the actual bend/distortion.
+    thickness: 0.1,
   });
 
   function applyReliefHeight(height, { ripple = false } = {}) {
@@ -231,6 +239,13 @@ async function init() {
   // Dispersion only has a visible effect once refraction/transmission is on.
   materialFolder.add(guiParams, "dispersion", 0, 5, 0.01).name("chromatic aberration").onChange((v) => {
     material.dispersion = v;
+    material.needsUpdate = true;
+  });
+  guiParams.thickness = material.thickness;
+  // The actual bend/distortion (not just IOR's Fresnel-reflectivity effect)
+  // scales with thickness — see the comment where the material is created.
+  materialFolder.add(guiParams, "thickness", 0, 1, 0.005).name("refraction depth").onChange((v) => {
+    material.thickness = v;
     material.needsUpdate = true;
   });
 
