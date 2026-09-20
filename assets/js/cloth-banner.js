@@ -706,13 +706,11 @@ async function init() {
     verletCloth.damping = v;
   });
 
-  // "liquid amount" (how strongly the pointer disturbs the liquid) lives
-  // under Liquid Material since it's specific to that mesh's response;
-  // "mouse size" (interaction radius) affects both the liquid poke and the
-  // cloth grab radius, so it lives under Mesh instead, as a general/shared
-  // setting rather than a liquid-specific one.
-  const liquidPointerFolder = materialFolder.addFolder("Pointer");
-  const pointerStrengthCtrl = liquidPointerFolder.add(pointerParams, "strength", 0, 0.2, 0.005).name("liquid amount");
+  // Pointer interaction controls live under Liquid Sim — "mouse size" also
+  // doubles as the cloth's grab radius (see onPointerMove), but it's a
+  // physics-feel knob either way, not a material property.
+  const pointerRadiusCtrl = liquidFolder.add(pointerParams, "radius", 0.01, 0.3, 0.005).name("mouse size");
+  const pointerStrengthCtrl = liquidFolder.add(pointerParams, "strength", 0, 0.2, 0.005).name("liquid amount");
 
   const meshResolutionOptions = { Low: 12000, Medium: 45000, High: 110000, "Very High": 220000 };
   guiParams.meshResolution = VERTEX_BUDGET;
@@ -731,10 +729,6 @@ async function init() {
     CLOTH_VERTEX_BUDGET = Number(v);
     buildClothMesh();
   });
-
-  const meshFolder = gui.addFolder("Mesh");
-  const meshPointerFolder = meshFolder.addFolder("Pointer");
-  const pointerRadiusCtrl = meshPointerFolder.add(pointerParams, "radius", 0.01, 0.3, 0.005).name("mouse size");
 
   // ---------- post-processing (bloom) ----------
   const postProcessing = new THREE.PostProcessing(renderer);
