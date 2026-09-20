@@ -96,20 +96,13 @@ async function init() {
 
   const material = new THREE.MeshPhysicalMaterial({
     color: 0xf7f7f7,
-    roughness: 0,
-    // Metals reflect 100% of incident light at the surface and transmit
-    // none, so diffuseColor (what transmission/refraction acts on) is
-    // physically zero once metalness reaches 1 — refraction is a dielectric
-    // (glass/water) effect, kept low here so it's actually visible.
-    metalness: 0.1,
+    roughness: 0.28,
+    metalness: 0.46,
     side: THREE.DoubleSide,
     transmission: 1,
     ior: 2.333,
-    dispersion: 0.9,
-    // The refraction ray is (refraction direction) * thickness — with the
-    // default thickness of 0 that ray has zero length, so IOR only ever
-    // affects Fresnel-based reflectivity, never the actual bend/distortion.
-    thickness: 0.1,
+    dispersion: 1.84,
+    thickness: 0,
   });
 
   function applyReliefHeight(height, { ripple = false } = {}) {
@@ -185,8 +178,8 @@ async function init() {
 
   buildCloth();
 
-  const pointLight = new THREE.PointLight(0xffffff, 20, 0, 0);
-  pointLight.position.set(-0.35, 0.59, 0.57);
+  const pointLight = new THREE.PointLight(0xffffff, 1, 0, 0);
+  pointLight.position.set(-0.36, 1.06, 0.57);
   scene.add(pointLight);
 
   const ambient = new THREE.AmbientLight(0xffffff, 0.12);
@@ -306,7 +299,7 @@ async function init() {
     });
   }
 
-  guiParams.envMap = envMapOptions["Pano 21"];
+  guiParams.envMap = envMapOptions["Pano 36"];
   const envFolder = gui.addFolder("Environment");
   envFolder.add(guiParams, "envMap", envMapOptions).name("env map").onChange(setEnvMap);
   setEnvMap(guiParams.envMap);
