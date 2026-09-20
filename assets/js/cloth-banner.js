@@ -2,7 +2,7 @@ import * as THREE from "three/webgpu";
 import { bloom } from "three/addons/tsl/display/BloomNode.js";
 import { GUI } from "dat.gui";
 import { Cloth } from "./cloth.js?v=1";
-import { VerletCloth } from "./verlet-cloth.js?v=2";
+import { VerletCloth } from "./verlet-cloth.js?v=3";
 
 const canvas = document.getElementById("liquid-canvas");
 const fallback = document.querySelector(".hero-fallback");
@@ -431,6 +431,10 @@ async function init() {
   // Mutable so the pointer-interaction code (defined further down) can read
   // whatever the GUI slider is currently set to.
   const pointerParams = { radius: startupPreset.pointerRadius, strength: startupPreset.pointerStrength };
+  // Cloth gets its own independent size/strength rather than sharing the
+  // liquid's — grabAt() now lerps toward the target by "strength" (1 =
+  // hard snap) instead of always snapping straight to it.
+  const clothPointerParams = { radius: 0.155, strength: 0.5 };
 
   // dat.gui's auto-scroll ("taller than window") math assumes the panel is
   // anchored from the top of the screen and clamps its open height to the
@@ -705,6 +709,14 @@ async function init() {
     clothSimParams.damping = v;
     verletCloth.damping = v;
   });
+  guiParams.clothPointerRadius = clothPointerParams.radius;
+  const clothPointerRadiusCtrl = clothSimFolder.add(guiParams, "clothPointerRadius", 0.01, 0.3, 0.005).name("size").onChange((v) => {
+    clothPointerParams.radius = v;
+  });
+  guiParams.clothPointerStrength = clothPointerParams.strength;
+  const clothPointerStrengthCtrl = clothSimFolder.add(guiParams, "clothPointerStrength", 0, 1, 0.01).name("cloth amount").onChange((v) => {
+    clothPointerParams.strength = v;
+  });
 
   // Pointer interaction controls live under Liquid Sim — "mouse size" also
   // doubles as the cloth's grab radius (see onPointerMove), but it's a
@@ -807,6 +819,8 @@ async function init() {
       clothGravity: guiParams.clothGravity,
       clothWind: guiParams.clothWind,
       clothDamping: guiParams.clothDamping,
+      clothPointerRadius: guiParams.clothPointerRadius,
+      clothPointerStrength: guiParams.clothPointerStrength,
       clothRoughness: guiParams.clothRoughness,
       clothMetalness: guiParams.clothMetalness,
       clothColor: guiParams.clothColor,
@@ -835,6 +849,7 @@ async function init() {
     depthGain: depthGainCtrl, displacementScale: displacementScaleCtrl, maxVelocity: maxVelocityCtrl,
     clothEnabled: clothEnabledCtrl, clothCollisions: clothCollisionsCtrl, clothGravity: clothGravityCtrl,
     clothWind: clothWindCtrl, clothDamping: clothDampingCtrl,
+    clothPointerRadius: clothPointerRadiusCtrl, clothPointerStrength: clothPointerStrengthCtrl,
     clothRoughness: clothRoughnessCtrl, clothMetalness: clothMetalnessCtrl, clothColor: clothColorCtrl,
     clothRefraction: clothRefractionCtrl, clothIor: clothIorCtrl, clothDispersion: clothDispersionCtrl,
     clothThickness: clothThicknessCtrl, clothEnvMap: clothEnvMapCtrl,
@@ -1053,9 +1068,7 @@ async function init() {
         cloth.applyForce(x, y, pointerParams.radius, strength);
       }
     }
-    // Reuses the same "mouse size" radius as the liquid poke rather than
-    // adding a separate cloth-only control.
-    if (clothSimParams.enabled) verletCloth.grabAt(x, y, x, y, 0, pointerParams.radius);
+    if (clothSimParams.enabled) verletCloth.grabAt(x, y, x, y, 0, clothPointerParams.radius, clothPointerParams.strength);
     lastLocalX = x;
     lastLocalY = y;
   }
@@ -1071,7 +1084,7 @@ async function init() {
     e.preventDefault();
     const { x, y } = localFromEvent(e);
     cloth.applyForce(x, y, pointerParams.radius * 1.4, MAX_FORCE * pointerParams.strength);
-    if (clothSimParams.enabled) verletCloth.grabAt(x, y, x, y, 0, pointerParams.radius * 1.4);
+    if (clothSimParams.enabled) verletCloth.grabAt(x, y, x, y, 0, clothPointerParams.radius * 1.4, clothPointerParams.strength);
     lastLocalX = x;
     lastLocalY = y;
   });

@@ -68,10 +68,12 @@ export class VerletCloth {
     return y * this.cols + x;
   }
 
-  // Directly displaces whichever unpinned vertex is nearest (localX, localY)
-  // toward (targetX, targetY, targetZ) — a drag/tug rather than a physics
-  // impulse, since Verlet integration has no explicit velocity to push.
-  grabAt(localX, localY, targetX, targetY, targetZ, radius) {
+  // Pulls whichever unpinned vertex is nearest (localX, localY) toward
+  // (targetX, targetY, targetZ) — a drag/tug rather than a physics impulse,
+  // since Verlet integration has no explicit velocity to push. `strength`
+  // (0-1) is how much of the way there it moves in one call: 1 snaps it
+  // straight to the target, lower values give a softer, laggier feel.
+  grabAt(localX, localY, targetX, targetY, targetZ, radius, strength = 1) {
     let closest = -1;
     let closestDist = Infinity;
     for (let i = 0; i < this.count; i++) {
@@ -85,9 +87,10 @@ export class VerletCloth {
       }
     }
     if (closest >= 0 && closestDist < radius * radius) {
-      this.pos[closest * 3] = targetX;
-      this.pos[closest * 3 + 1] = targetY;
-      this.pos[closest * 3 + 2] = targetZ;
+      const i = closest * 3;
+      this.pos[i] += (targetX - this.pos[i]) * strength;
+      this.pos[i + 1] += (targetY - this.pos[i + 1]) * strength;
+      this.pos[i + 2] += (targetZ - this.pos[i + 2]) * strength;
     }
   }
 
