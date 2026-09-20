@@ -365,7 +365,7 @@ async function init() {
   guiParams.bloomThreshold = BLOOM_THRESHOLD;
 
   const bloomFolder = gui.addFolder("Bloom");
-  const bloomStrengthCtrl = bloomFolder.add(guiParams, "bloomStrength", 0, 0.2, 0.005).name("amount");
+  const bloomStrengthCtrl = bloomFolder.add(guiParams, "bloomStrength", 0, 1, 0.01).name("amount");
   const bloomRadiusCtrl = bloomFolder.add(guiParams, "bloomRadius", 0, 1, 0.01).name("radius").onChange((v) => { bloomPass.radius.value = v; });
   const bloomThresholdCtrl = bloomFolder.add(guiParams, "bloomThreshold", 0, 1, 0.01).name("threshold");
   const bloomSoftnessCtrl = bloomFolder.add(guiParams, "bloomSoftness", 0, 0.5, 0.005).name("gradient softness").onChange((v) => { bloomPass.smoothWidth.value = v; });
@@ -389,7 +389,7 @@ async function init() {
     { key: "lightZ", label: "Point Light: Z", base: guiParams.lightZ, ampMax: 2.5, controller: lightZCtrl, apply: (v) => { pointLight.position.z = v; } },
     { key: "lightIntensity", label: "Point Light: Brightness", base: guiParams.lightIntensity, ampMax: 10, controller: lightIntensityCtrl, apply: (v) => { pointLight.intensity = v; } },
     { key: "reliefHeight", label: "Displacement: Depth Map Amount", base: guiParams.reliefHeight, ampMax: 0.3, controller: reliefCtrl, apply: (v) => { applyReliefHeight(v, { ripple: true }); } },
-    { key: "bloomStrength", label: "Bloom: Amount", base: guiParams.bloomStrength, ampMax: 0.2, controller: bloomStrengthCtrl, apply: applyBloomStrength },
+    { key: "bloomStrength", label: "Bloom: Amount", base: guiParams.bloomStrength, ampMax: 1, controller: bloomStrengthCtrl, apply: applyBloomStrength },
     { key: "bloomThreshold", label: "Bloom: Threshold", base: guiParams.bloomThreshold, ampMax: 0.5, controller: bloomThresholdCtrl, apply: (v) => { bloomPass.threshold.value = v; } },
   ];
   const targetOptions = {};
