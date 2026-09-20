@@ -108,6 +108,7 @@ a {
   border: 0;
   border-radius: 50%;
   cursor: pointer;
+  opacity: 0.5;
   transition: transform 0.15s ease, opacity 0.15s ease;
 }
 
@@ -120,6 +121,7 @@ a {
 
 .hero-cta:hover {
   transform: translate(-50%, 0) scale(1.08);
+  opacity: 1;
 }
 
 main.wrap {
