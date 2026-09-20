@@ -342,3 +342,18 @@ main.wrap.open {
     border-radius: 8px 8px 0 0;
   }
 }
+
+@media (max-width: 600px) {
+  .release-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+
+  .release-card .r-title {
+    font-size: 13px;
+  }
+
+  .release-card .r-artist {
+    font-size: 11px;
+  }
+}
