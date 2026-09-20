@@ -91,7 +91,12 @@ export class VerletCloth {
     }
   }
 
-  simulate(dt, time) {
+  // `floorAt(x, y)`, if given, returns a z the cloth can't sink below at
+  // that local (x, y) — applied after constraint relaxation, once per
+  // vertex, and clamps both pos and prev together so contact kills the
+  // vertex's z-velocity instead of leaving it to spring back through the
+  // floor next frame.
+  simulate(dt, time, floorAt) {
     dt = Math.min(dt, 1 / 30);
     const { pos, prev, count } = this;
 
@@ -145,6 +150,18 @@ export class VerletCloth {
           pos[bi] -= dx * diff * 0.5;
           pos[bi + 1] -= dy * diff * 0.5;
           pos[bi + 2] -= dz * diff * 0.5;
+        }
+      }
+    }
+
+    if (floorAt) {
+      for (let i = 0; i < count; i++) {
+        if (this.pinned[i]) continue;
+        const ix = i * 3;
+        const floorZ = floorAt(pos[ix], pos[ix + 1]);
+        if (pos[ix + 2] < floorZ) {
+          pos[ix + 2] = floorZ;
+          prev[ix + 2] = floorZ;
         }
       }
     }

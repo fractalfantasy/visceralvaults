@@ -1,8 +1,8 @@
 import * as THREE from "three/webgpu";
 import { bloom } from "three/addons/tsl/display/BloomNode.js";
 import { GUI } from "dat.gui";
-import { Cloth } from "./cloth.js";
-import { VerletCloth } from "./verlet-cloth.js";
+import { Cloth } from "./cloth.js?v=1";
+import { VerletCloth } from "./verlet-cloth.js?v=2";
 
 const canvas = document.getElementById("liquid-canvas");
 const fallback = document.querySelector(".hero-fallback");
@@ -222,6 +222,11 @@ async function init() {
     gravity: -0.35,
     wind: 0.25,
     damping: 0.98,
+    // Treats the liquid mesh's current surface as a floor the cloth can't
+    // sink below — off by default since it's an extra per-vertex height
+    // lookup against the liquid grid every frame (cheap, but only worth
+    // paying for when both meshes are actually shown together).
+    collisions: false,
   };
 
   // Master on/off for the liquid mesh, mirroring clothSimParams.enabled —
@@ -681,6 +686,10 @@ async function init() {
   // hidden), so it costs nothing until switched on. Can be shown alongside
   // the liquid mesh or on its own.
   const clothSimFolder = gui.addFolder("Cloth Sim");
+  guiParams.clothCollisions = clothSimParams.collisions;
+  const clothCollisionsCtrl = clothSimFolder.add(guiParams, "clothCollisions").name("activate collisions").onChange((v) => {
+    clothSimParams.collisions = v;
+  });
   guiParams.clothGravity = clothSimParams.gravity;
   const clothGravityCtrl = clothSimFolder.add(guiParams, "clothGravity", -2, 0, 0.01).name("gravity").onChange((v) => {
     clothSimParams.gravity = v;
@@ -800,6 +809,7 @@ async function init() {
       displacementScale: guiParams.displacementScale,
       maxVelocity: guiParams.maxVelocity,
       clothEnabled: guiParams.clothEnabled,
+      clothCollisions: guiParams.clothCollisions,
       clothGravity: guiParams.clothGravity,
       clothWind: guiParams.clothWind,
       clothDamping: guiParams.clothDamping,
@@ -829,7 +839,7 @@ async function init() {
     bloomRadius: bloomRadiusCtrl, bloomThreshold: bloomThresholdCtrl, bloomSoftness: bloomSoftnessCtrl,
     waveSpeed: waveSpeedCtrl, restoring: restoringCtrl, damping: dampingCtrl,
     depthGain: depthGainCtrl, displacementScale: displacementScaleCtrl, maxVelocity: maxVelocityCtrl,
-    clothEnabled: clothEnabledCtrl, clothGravity: clothGravityCtrl,
+    clothEnabled: clothEnabledCtrl, clothCollisions: clothCollisionsCtrl, clothGravity: clothGravityCtrl,
     clothWind: clothWindCtrl, clothDamping: clothDampingCtrl,
     clothRoughness: clothRoughnessCtrl, clothMetalness: clothMetalnessCtrl, clothColor: clothColorCtrl,
     clothRefraction: clothRefractionCtrl, clothIor: clothIorCtrl, clothDispersion: clothDispersionCtrl,
@@ -1119,7 +1129,9 @@ async function init() {
 
     updateAnimators(now / 1000);
     if (liquidEnabled) cloth.update(dt);
-    if (clothSimParams.enabled) verletCloth.simulate(dt, now / 1000);
+    if (clothSimParams.enabled) {
+      verletCloth.simulate(dt, now / 1000, clothSimParams.collisions ? (x, y) => cloth.heightAt(x, y) : undefined);
+    }
 
     if (guiParams.showFps && dt > 0) {
       const instantFps = 1 / dt;

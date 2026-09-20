@@ -42,6 +42,21 @@ export class Cloth {
     return y * this.cols + x;
   }
 
+  // Nearest-neighbor sample of the surface's current rendered height (what
+  // actually ends up on the mesh, i.e. including displacementScale) at an
+  // arbitrary local (x, y) — used by the cloth sim's optional collision
+  // check to treat this surface as a floor. Same coordinate mapping as
+  // applyForce() above, just rounded to a single grid cell instead of
+  // spread over a radius.
+  heightAt(localX, localY) {
+    const gx = Math.round(((localX + this.width / 2) / this.width) * this.segmentsX);
+    const gy = Math.round(((this.height / 2 - localY) / this.height) * this.segmentsY);
+    const cx = Math.min(this.segmentsX, Math.max(0, gx));
+    const cy = Math.min(this.segmentsY, Math.max(0, gy));
+    const i = this.index(cx, cy);
+    return (this.h[i] + this.depthOffset[i]) * this.displacementScale;
+  }
+
   // localX/localY are in the same unit space as width/height (i.e.
   // -width/2..width/2), radius is in that same unit space.
   applyForce(localX, localY, radius, strength) {
