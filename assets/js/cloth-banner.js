@@ -146,9 +146,9 @@ async function init() {
   camera.lookAt(0, 0, 0);
 
   const material = new THREE.MeshPhysicalMaterial({
-    color: 0x000000,
-    roughness: 0.28,
-    metalness: 0.46,
+    color: 0xff0000,
+    roughness: 0.34,
+    metalness: 0.48,
     side: THREE.DoubleSide,
     transmission: 1,
     ior: 2.333,
@@ -260,10 +260,15 @@ async function init() {
   // simplest to turn the feature off outright.
   const gui = new GUI({ scrollable: false });
 
+  // Populated near the end of init(), once every other controller exists to
+  // wire a snapshot/apply system to — created here first just so it renders
+  // at the top of the panel.
+  const presetsFolder = gui.addFolder("Presets");
+
   const materialFolder = gui.addFolder("Material");
   const roughnessCtrl = materialFolder.add(guiParams, "roughness", 0, 1, 0.01);
   const metalnessCtrl = materialFolder.add(guiParams, "metalness", 0, 1, 0.01);
-  materialFolder.addColor(guiParams, "color").onChange((v) => { material.color.set(v); });
+  const colorCtrl = materialFolder.addColor(guiParams, "color").onChange((v) => { material.color.set(v); });
 
   guiParams.refraction = material.transmission > 0;
   guiParams.ior = material.ior;
@@ -272,23 +277,23 @@ async function init() {
   // transmission on switches which lighting-model branch that graph needs
   // (plain PBR vs. IBL volume refraction), so it has to be told to rebuild —
   // just mutating the property is silently ignored by the cached shader.
-  materialFolder.add(guiParams, "refraction").onChange((v) => {
+  const refractionCtrl = materialFolder.add(guiParams, "refraction").onChange((v) => {
     material.transmission = v ? 1 : 0;
     material.needsUpdate = true;
   });
-  materialFolder.add(guiParams, "ior", 1, 2.333, 0.001).name("index of refraction").onChange((v) => {
+  const iorCtrl = materialFolder.add(guiParams, "ior", 1, 2.333, 0.001).name("index of refraction").onChange((v) => {
     material.ior = v;
     material.needsUpdate = true;
   });
   // Dispersion only has a visible effect once refraction/transmission is on.
-  materialFolder.add(guiParams, "dispersion", 0, 5, 0.01).name("chromatic aberration").onChange((v) => {
+  const dispersionCtrl = materialFolder.add(guiParams, "dispersion", 0, 5, 0.01).name("chromatic aberration").onChange((v) => {
     material.dispersion = v;
     material.needsUpdate = true;
   });
   guiParams.thickness = material.thickness;
   // The actual bend/distortion (not just IOR's Fresnel-reflectivity effect)
   // scales with thickness — see the comment where the material is created.
-  materialFolder.add(guiParams, "thickness", 0, 1, 0.005).name("refraction depth").onChange((v) => {
+  const thicknessCtrl = materialFolder.add(guiParams, "thickness", 0, 1, 0.005).name("refraction depth").onChange((v) => {
     material.thickness = v;
     material.needsUpdate = true;
   });
@@ -352,7 +357,7 @@ async function init() {
 
   guiParams.envMap = envMapOptions["Pano 36"];
   const envFolder = gui.addFolder("Environment");
-  envFolder.add(guiParams, "envMap", envMapOptions).name("env map").onChange(setEnvMap);
+  const envMapCtrl = envFolder.add(guiParams, "envMap", envMapOptions).name("env map").onChange(setEnvMap);
   setEnvMap(guiParams.envMap);
 
   const lightFolder = gui.addFolder("Point Light");
@@ -363,7 +368,7 @@ async function init() {
 
   const displacementFolder = gui.addFolder("Displacement");
   guiParams.logoImage = logoImageOptions["Blur (tight)"];
-  displacementFolder.add(guiParams, "logoImage", logoImageOptions).name("displacement image").onChange(async (filename) => {
+  const logoImageCtrl = displacementFolder.add(guiParams, "logoImage", logoImageOptions).name("displacement image").onChange(async (filename) => {
     logoImage = await loadImage(LOGO_IMAGE_BASE + filename);
     logoCrop = computeTightBounds(logoImage);
     LOGO_ASPECT = logoCrop.width / logoCrop.height;
@@ -377,13 +382,13 @@ async function init() {
   const reliefCtrl = displacementFolder.add(guiParams, "reliefHeight", 0, 0.6, 0.0001).name("depth map amount");
 
   const pointerFolder = gui.addFolder("Pointer");
-  pointerFolder.add(pointerParams, "radius", 0.01, 0.3, 0.005).name("mouse size");
-  pointerFolder.add(pointerParams, "strength", 0, 0.2, 0.005).name("liquid amount");
+  const pointerRadiusCtrl = pointerFolder.add(pointerParams, "radius", 0.01, 0.3, 0.005).name("mouse size");
+  const pointerStrengthCtrl = pointerFolder.add(pointerParams, "strength", 0, 0.2, 0.005).name("liquid amount");
 
   const meshFolder = gui.addFolder("Mesh");
   const meshResolutionOptions = { Low: 12000, Medium: 45000, High: 110000, "Very High": 220000 };
   guiParams.meshResolution = VERTEX_BUDGET;
-  meshFolder.add(guiParams, "meshResolution", meshResolutionOptions).name("resolution").onChange((v) => {
+  const meshResolutionCtrl = meshFolder.add(guiParams, "meshResolution", meshResolutionOptions).name("resolution").onChange((v) => {
     VERTEX_BUDGET = Number(v);
     buildCloth();
   });
@@ -429,6 +434,96 @@ async function init() {
   const bloomRadiusCtrl = bloomFolder.add(guiParams, "bloomRadius", 0, 1, 0.01).name("radius").onChange((v) => { bloomPass.radius.value = v; });
   const bloomThresholdCtrl = bloomFolder.add(guiParams, "bloomThreshold", 0, 1, 0.01).name("threshold");
   const bloomSoftnessCtrl = bloomFolder.add(guiParams, "bloomSoftness", 0, 0.5, 0.005).name("gradient softness").onChange((v) => { bloomPass.smoothWidth.value = v; });
+
+  // ---------- presets ----------
+  // A snapshot is just the plain values every relevant controller already
+  // reads/writes; applying one is a series of controller.setValue() calls,
+  // which re-fires each control's own onChange — same code path as a user
+  // dragging it by hand — so material updates, buildCloth() (logo image /
+  // mesh resolution) and setEnvMap() all happen automatically.
+  function getPresetSnapshot() {
+    return {
+      roughness: guiParams.roughness,
+      metalness: guiParams.metalness,
+      color: guiParams.color,
+      refraction: guiParams.refraction,
+      ior: guiParams.ior,
+      dispersion: guiParams.dispersion,
+      thickness: guiParams.thickness,
+      envMap: guiParams.envMap,
+      lightX: guiParams.lightX,
+      lightY: guiParams.lightY,
+      lightZ: guiParams.lightZ,
+      lightIntensity: guiParams.lightIntensity,
+      logoImage: guiParams.logoImage,
+      reliefHeight: guiParams.reliefHeight,
+      pointerRadius: pointerParams.radius,
+      pointerStrength: pointerParams.strength,
+      meshResolution: guiParams.meshResolution,
+      bloomStrength: guiParams.bloomStrength,
+      bloomRadius: guiParams.bloomRadius,
+      bloomThreshold: guiParams.bloomThreshold,
+      bloomSoftness: guiParams.bloomSoftness,
+    };
+  }
+
+  const PRESET_CONTROLLERS = {
+    roughness: roughnessCtrl, metalness: metalnessCtrl, color: colorCtrl,
+    refraction: refractionCtrl, ior: iorCtrl, dispersion: dispersionCtrl, thickness: thicknessCtrl,
+    envMap: envMapCtrl, lightX: lightXCtrl, lightY: lightYCtrl, lightZ: lightZCtrl,
+    lightIntensity: lightIntensityCtrl, logoImage: logoImageCtrl, reliefHeight: reliefCtrl,
+    pointerRadius: pointerRadiusCtrl, pointerStrength: pointerStrengthCtrl,
+    meshResolution: meshResolutionCtrl, bloomStrength: bloomStrengthCtrl,
+    bloomRadius: bloomRadiusCtrl, bloomThreshold: bloomThresholdCtrl, bloomSoftness: bloomSoftnessCtrl,
+  };
+
+  function applyPreset(snapshot) {
+    if (!snapshot) return;
+    for (const key in PRESET_CONTROLLERS) {
+      if (snapshot[key] !== undefined) PRESET_CONTROLLERS[key].setValue(snapshot[key]);
+    }
+  }
+
+  const PRESETS_STORAGE_KEY = "vv-presets";
+  const DEFAULT_PRESET_NAME = "Red Candy Paint";
+  const BUILT_IN_PRESETS = {
+    [DEFAULT_PRESET_NAME]: getPresetSnapshot(), // captures the values the scene was just built with, above
+  };
+
+  function loadCustomPresets() {
+    try {
+      return JSON.parse(localStorage.getItem(PRESETS_STORAGE_KEY)) || {};
+    } catch {
+      return {};
+    }
+  }
+
+  let customPresets = loadCustomPresets();
+
+  let presetCtrl = null;
+  function rebuildPresetDropdown(selected) {
+    if (presetCtrl) presetsFolder.remove(presetCtrl);
+    const options = Object.keys({ ...BUILT_IN_PRESETS, ...customPresets });
+    guiParams.preset = selected;
+    presetCtrl = presetsFolder.add(guiParams, "preset", options).name("load preset").onChange((name) => {
+      applyPreset(BUILT_IN_PRESETS[name] || customPresets[name]);
+    });
+  }
+
+  guiParams.newPresetName = "";
+  presetsFolder.add(guiParams, "newPresetName").name("new preset name");
+  presetsFolder.add({
+    save: () => {
+      const name = guiParams.newPresetName.trim();
+      if (!name) return;
+      customPresets[name] = getPresetSnapshot();
+      localStorage.setItem(PRESETS_STORAGE_KEY, JSON.stringify(customPresets));
+      guiParams.newPresetName = "";
+      rebuildPresetDropdown(name);
+    },
+  }, "save").name("+ save as preset");
+
+  rebuildPresetDropdown(DEFAULT_PRESET_NAME);
 
   // ---------- animators ----------
   // Each animator drives one target parameter as base + amount*sin(2*pi*speed*t),
