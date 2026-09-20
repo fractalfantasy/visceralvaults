@@ -216,10 +216,23 @@ async function init() {
   guiParams.refraction = material.transmission > 0;
   guiParams.ior = material.ior;
   guiParams.dispersion = material.dispersion;
-  materialFolder.add(guiParams, "refraction").onChange((v) => { material.transmission = v ? 1 : 0; });
-  materialFolder.add(guiParams, "ior", 1, 2.333, 0.001).name("index of refraction").onChange((v) => { material.ior = v; });
+  // WebGPU/TSL compiles a material's node graph once and caches it; toggling
+  // transmission on switches which lighting-model branch that graph needs
+  // (plain PBR vs. IBL volume refraction), so it has to be told to rebuild —
+  // just mutating the property is silently ignored by the cached shader.
+  materialFolder.add(guiParams, "refraction").onChange((v) => {
+    material.transmission = v ? 1 : 0;
+    material.needsUpdate = true;
+  });
+  materialFolder.add(guiParams, "ior", 1, 2.333, 0.001).name("index of refraction").onChange((v) => {
+    material.ior = v;
+    material.needsUpdate = true;
+  });
   // Dispersion only has a visible effect once refraction/transmission is on.
-  materialFolder.add(guiParams, "dispersion", 0, 5, 0.01).name("chromatic aberration").onChange((v) => { material.dispersion = v; });
+  materialFolder.add(guiParams, "dispersion", 0, 5, 0.01).name("chromatic aberration").onChange((v) => {
+    material.dispersion = v;
+    material.needsUpdate = true;
+  });
 
   // Hotlinked rather than vendored — 130 panoramas would bloat the repo,
   // and the host already serves them with permissive CORS headers so they
@@ -283,11 +296,26 @@ async function init() {
   const scenePass = THREE.pass(scene, camera);
   const sceneColor = scenePass.getTextureNode();
 
-  const BLOOM_STRENGTH = 0.41;
+  const BLOOM_STRENGTH = 0.08;
   const BLOOM_RADIUS = 0.4;
   const BLOOM_THRESHOLD = 1;
   const bloomPass = bloom(sceneColor, BLOOM_STRENGTH, BLOOM_RADIUS, BLOOM_THRESHOLD);
-  postProcessing.outputNode = sceneColor.add(bloomPass);
+  const bloomOutputNode = sceneColor.add(bloomPass);
+  postProcessing.outputNode = BLOOM_STRENGTH > 0 ? bloomOutputNode : sceneColor;
+
+  // The bloom node still runs its downsample/blur passes every frame purely
+  // by being part of the output graph, regardless of how low its strength
+  // uniform is — skipping it at 0 means swapping it out of the graph
+  // entirely, not just multiplying by zero.
+  function applyBloomStrength(v) {
+    bloomPass.strength.value = v;
+    const shouldBloom = v > 0;
+    const isBloomOn = postProcessing.outputNode === bloomOutputNode;
+    if (shouldBloom !== isBloomOn) {
+      postProcessing.outputNode = shouldBloom ? bloomOutputNode : sceneColor;
+      postProcessing.needsUpdate = true;
+    }
+  }
 
   guiParams.bloomStrength = BLOOM_STRENGTH;
   guiParams.bloomRadius = BLOOM_RADIUS;
@@ -295,7 +323,7 @@ async function init() {
   guiParams.bloomThreshold = BLOOM_THRESHOLD;
 
   const bloomFolder = gui.addFolder("Bloom");
-  const bloomStrengthCtrl = bloomFolder.add(guiParams, "bloomStrength", 0, 3, 0.01).name("amount");
+  const bloomStrengthCtrl = bloomFolder.add(guiParams, "bloomStrength", 0, 0.2, 0.005).name("amount");
   const bloomRadiusCtrl = bloomFolder.add(guiParams, "bloomRadius", 0, 1, 0.01).name("radius").onChange((v) => { bloomPass.radius.value = v; });
   const bloomThresholdCtrl = bloomFolder.add(guiParams, "bloomThreshold", 0, 1, 0.01).name("threshold");
   const bloomSoftnessCtrl = bloomFolder.add(guiParams, "bloomSoftness", 0, 0.5, 0.005).name("gradient softness").onChange((v) => { bloomPass.smoothWidth.value = v; });
@@ -319,7 +347,7 @@ async function init() {
     { key: "lightZ", label: "Point Light: Z", base: guiParams.lightZ, ampMax: 2.5, controller: lightZCtrl, apply: (v) => { pointLight.position.z = v; } },
     { key: "lightIntensity", label: "Point Light: Brightness", base: guiParams.lightIntensity, ampMax: 10, controller: lightIntensityCtrl, apply: (v) => { pointLight.intensity = v; } },
     { key: "reliefHeight", label: "Displacement: Depth Map Amount", base: guiParams.reliefHeight, ampMax: 0.3, controller: reliefCtrl, apply: (v) => { applyReliefHeight(v, { ripple: true }); } },
-    { key: "bloomStrength", label: "Bloom: Amount", base: guiParams.bloomStrength, ampMax: 1.5, controller: bloomStrengthCtrl, apply: (v) => { bloomPass.strength.value = v; } },
+    { key: "bloomStrength", label: "Bloom: Amount", base: guiParams.bloomStrength, ampMax: 0.2, controller: bloomStrengthCtrl, apply: applyBloomStrength },
     { key: "bloomThreshold", label: "Bloom: Threshold", base: guiParams.bloomThreshold, ampMax: 0.5, controller: bloomThresholdCtrl, apply: (v) => { bloomPass.threshold.value = v; } },
   ];
   const targetOptions = {};
