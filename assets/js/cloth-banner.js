@@ -169,6 +169,11 @@ async function init() {
   };
   let logoImage = await loadImage(LOGO_IMAGE_BASE + startupPreset.logoImage);
   let logoCrop = computeTightBounds(logoImage);
+  // The cloth material has its own independent displacement image/amount —
+  // defaults to the same picture as the liquid mesh's, but each can be
+  // changed without affecting the other.
+  let clothLogoImage = logoImage;
+  let clothLogoCrop = logoCrop;
 
   // The banner is a fixed full-viewport background, so the mesh matches the
   // viewport's aspect instead of the logo's — the logo occupies a band at
@@ -180,6 +185,8 @@ async function init() {
   const PLANE_WIDTH = 1;
   let LOGO_ASPECT = logoCrop.width / logoCrop.height;
   let LOGO_BAND_HEIGHT = PLANE_WIDTH / LOGO_ASPECT;
+  let CLOTH_LOGO_ASPECT = LOGO_ASPECT;
+  let CLOTH_LOGO_BAND_HEIGHT = LOGO_BAND_HEIGHT;
   // Where the logo band's own center sits, as a fraction of viewport height
   // down from the top. 0.5 = vertically centered.
   const LOGO_CENTER_FRACTION = 0.5;
@@ -232,8 +239,10 @@ async function init() {
   let mesh;
   let verletCloth;
   let clothMesh;
+  let clothLogoGray;
   let currentReliefHeight = 0; // what's actually baked into cloth.depthTarget right now
   let reliefHeightValue = RELIEF_HEIGHT; // last value asked for, survives mesh rebuilds
+  let clothReliefHeightValue = RELIEF_HEIGHT;
 
   const scene = new THREE.Scene();
   const camera = new THREE.OrthographicCamera(-PLANE_WIDTH / 2, PLANE_WIDTH / 2, 0.5, -0.5, 0.1, 10);
@@ -251,13 +260,17 @@ async function init() {
     thickness: startupPreset.thickness,
   });
 
-  // Kept deliberately simple (no refraction/dispersion) since the cloth is
-  // an optional layer, not the main visual focus.
-  const clothMaterial = new THREE.MeshStandardMaterial({
-    color: 0x888888,
-    roughness: 0.6,
-    metalness: 0.1,
+  // Same set of params as the liquid material (see "Cloth Material" in the
+  // GUI below) — starts out matching it too, then diverges independently.
+  const clothMaterial = new THREE.MeshPhysicalMaterial({
+    color: startupPreset.color,
+    roughness: startupPreset.roughness,
+    metalness: startupPreset.metalness,
     side: THREE.DoubleSide,
+    transmission: startupPreset.refraction ? 1 : 0,
+    ior: startupPreset.ior,
+    dispersion: startupPreset.dispersion,
+    thickness: startupPreset.thickness,
   });
 
   function applyReliefHeight(height, { ripple = false } = {}) {
@@ -270,6 +283,17 @@ async function init() {
     }
     currentReliefHeight = height;
     reliefHeightValue = height;
+  }
+
+  // The cloth sim's relief is embossed on top of its physics (see
+  // depthTarget/depthOffset in verlet-cloth.js) rather than fed into the
+  // constraint solver, so — unlike the liquid's — there's no ripple-impulse
+  // variant.
+  function applyClothReliefHeight(height) {
+    for (let i = 0; i < verletCloth.count; i++) {
+      verletCloth.depthTarget[i] = clothLogoGray[i] * height;
+    }
+    clothReliefHeightValue = height;
   }
 
   // (Re)builds the cloth grid and its logo-band bake to match the current
@@ -338,6 +362,25 @@ async function init() {
     verletCloth.gravity = clothSimParams.gravity;
     verletCloth.wind = clothSimParams.wind;
     verletCloth.damping = clothSimParams.damping;
+
+    // Bakes the cloth's own (independently chosen) displacement image onto
+    // its own grid, same band-placement logic as the liquid mesh above.
+    const clothGridW = clothSegX + 1;
+    const clothBandRows = Math.max(1, Math.round(clothSegY * (CLOTH_LOGO_BAND_HEIGHT / PLANE_HEIGHT)));
+    const clothBandCenterRow = Math.round(clothSegY * LOGO_CENTER_FRACTION);
+    const clothBandStartRow = Math.max(0, Math.round(clothBandCenterRow - clothBandRows / 2));
+    const clothPixels = sampleImageGrid(clothLogoImage, clothGridW, clothBandRows + 1, clothLogoCrop);
+    const newClothLogoGray = new Float32Array(verletCloth.count);
+    for (let i = 0; i <= clothBandRows; i++) {
+      const gy = clothBandStartRow + i;
+      for (let gx = 0; gx < clothGridW; gx++) {
+        const p = (i * clothGridW + gx) * 4;
+        newClothLogoGray[verletCloth.index(gx, gy)] = clothPixels[p] / 255;
+      }
+    }
+    clothLogoGray = newClothLogoGray;
+    applyClothReliefHeight(clothReliefHeightValue);
+
     clothMesh = new THREE.Mesh(verletCloth.geometry, clothMaterial);
     clothMesh.position.z = 0.02; // clears the liquid mesh's own surface if both are shown at once
     clothMesh.visible = clothSimParams.enabled;
@@ -386,7 +429,7 @@ async function init() {
   // at the top of the panel.
   const presetsFolder = gui.addFolder("Presets");
 
-  const materialFolder = gui.addFolder("Material");
+  const materialFolder = gui.addFolder("Liquid Material");
   const roughnessCtrl = materialFolder.add(guiParams, "roughness", 0, 1, 0.01);
   const metalnessCtrl = materialFolder.add(guiParams, "metalness", 0, 1, 0.01);
   const colorCtrl = materialFolder.addColor(guiParams, "color").onChange((v) => { material.color.set(v); });
@@ -477,19 +520,11 @@ async function init() {
   }
 
   guiParams.envMap = startupPreset.envMap;
-  const envFolder = gui.addFolder("Environment");
-  const envMapCtrl = envFolder.add(guiParams, "envMap", envMapOptions).name("env map").onChange(setEnvMap);
+  const envMapCtrl = materialFolder.add(guiParams, "envMap", envMapOptions).name("env map").onChange(setEnvMap);
   setEnvMap(guiParams.envMap);
 
-  const lightFolder = gui.addFolder("Point Light");
-  const lightXCtrl = lightFolder.add(guiParams, "lightX", -2, 2, 0.01);
-  const lightYCtrl = lightFolder.add(guiParams, "lightY", -2, 2, 0.01);
-  const lightZCtrl = lightFolder.add(guiParams, "lightZ", 0, 5, 0.01);
-  const lightIntensityCtrl = lightFolder.add(guiParams, "lightIntensity", 0, 20, 0.1).name("brightness");
-
-  const displacementFolder = gui.addFolder("Displacement");
   guiParams.logoImage = startupPreset.logoImage;
-  const logoImageCtrl = displacementFolder.add(guiParams, "logoImage", logoImageOptions).name("displacement image").onChange(async (filename) => {
+  const logoImageCtrl = materialFolder.add(guiParams, "logoImage", logoImageOptions).name("displacement image").onChange(async (filename) => {
     logoImage = await loadImage(LOGO_IMAGE_BASE + filename);
     logoCrop = computeTightBounds(logoImage);
     LOGO_ASPECT = logoCrop.width / logoCrop.height;
@@ -500,7 +535,58 @@ async function init() {
   // ones set programmatically by an animator, not just manual drags — so a
   // coarse step here visibly staircases the animated depth-map amount
   // instead of moving smoothly.
-  const reliefCtrl = displacementFolder.add(guiParams, "reliefHeight", 0, 0.6, 0.0001).name("depth map amount");
+  const reliefCtrl = materialFolder.add(guiParams, "reliefHeight", 0, 0.6, 0.0001).name("depth map amount");
+
+  // ---------- cloth material ----------
+  // Same set of controls as Liquid Material above, driving the separate
+  // clothMaterial/verletCloth instead — including its own independent
+  // displacement image/amount, not tied to the liquid mesh's choice. Reuses
+  // the same envMapOptions/logoImageOptions lists rather than duplicating
+  // them, and the same scene-level environment (there's only one skybox;
+  // both materials reflect/refract it automatically).
+  const clothMaterialFolder = gui.addFolder("Cloth Material");
+  guiParams.clothRoughness = clothMaterial.roughness;
+  const clothRoughnessCtrl = clothMaterialFolder.add(guiParams, "clothRoughness", 0, 1, 0.01).name("roughness").onChange((v) => { clothMaterial.roughness = v; });
+  guiParams.clothMetalness = clothMaterial.metalness;
+  const clothMetalnessCtrl = clothMaterialFolder.add(guiParams, "clothMetalness", 0, 1, 0.01).name("metalness").onChange((v) => { clothMaterial.metalness = v; });
+  guiParams.clothColor = "#" + clothMaterial.color.getHexString();
+  const clothColorCtrl = clothMaterialFolder.addColor(guiParams, "clothColor").name("color").onChange((v) => { clothMaterial.color.set(v); });
+  guiParams.clothRefraction = clothMaterial.transmission > 0;
+  const clothRefractionCtrl = clothMaterialFolder.add(guiParams, "clothRefraction").name("refraction").onChange((v) => {
+    clothMaterial.transmission = v ? 1 : 0;
+    clothMaterial.needsUpdate = true;
+  });
+  guiParams.clothIor = clothMaterial.ior;
+  const clothIorCtrl = clothMaterialFolder.add(guiParams, "clothIor", 1, 2.333, 0.001).name("index of refraction").onChange((v) => {
+    clothMaterial.ior = v;
+    clothMaterial.needsUpdate = true;
+  });
+  guiParams.clothDispersion = clothMaterial.dispersion;
+  const clothDispersionCtrl = clothMaterialFolder.add(guiParams, "clothDispersion", 0, 5, 0.01).name("chromatic aberration").onChange((v) => {
+    clothMaterial.dispersion = v;
+    clothMaterial.needsUpdate = true;
+  });
+  guiParams.clothThickness = clothMaterial.thickness;
+  const clothThicknessCtrl = clothMaterialFolder.add(guiParams, "clothThickness", 0, 1, 0.005).name("refraction depth").onChange((v) => {
+    clothMaterial.thickness = v;
+    clothMaterial.needsUpdate = true;
+  });
+  guiParams.clothLogoImage = startupPreset.logoImage;
+  const clothLogoImageCtrl = clothMaterialFolder.add(guiParams, "clothLogoImage", logoImageOptions).name("displacement image").onChange(async (filename) => {
+    clothLogoImage = await loadImage(LOGO_IMAGE_BASE + filename);
+    clothLogoCrop = computeTightBounds(clothLogoImage);
+    CLOTH_LOGO_ASPECT = clothLogoCrop.width / clothLogoCrop.height;
+    CLOTH_LOGO_BAND_HEIGHT = PLANE_WIDTH / CLOTH_LOGO_ASPECT;
+    buildCloth();
+  });
+  guiParams.clothReliefHeight = clothReliefHeightValue;
+  const clothReliefCtrl = clothMaterialFolder.add(guiParams, "clothReliefHeight", 0, 0.6, 0.0001).name("depth map amount").onChange(applyClothReliefHeight);
+
+  const lightFolder = gui.addFolder("Point Light");
+  const lightXCtrl = lightFolder.add(guiParams, "lightX", -2, 2, 0.01);
+  const lightYCtrl = lightFolder.add(guiParams, "lightY", -2, 2, 0.01);
+  const lightZCtrl = lightFolder.add(guiParams, "lightZ", 0, 5, 0.01);
+  const lightIntensityCtrl = lightFolder.add(guiParams, "lightIntensity", 0, 20, 0.1).name("brightness");
 
   // ---------- liquid sim ----------
   const liquidFolder = gui.addFolder("Liquid Sim");
@@ -648,6 +734,15 @@ async function init() {
       clothGravity: guiParams.clothGravity,
       clothWind: guiParams.clothWind,
       clothDamping: guiParams.clothDamping,
+      clothRoughness: guiParams.clothRoughness,
+      clothMetalness: guiParams.clothMetalness,
+      clothColor: guiParams.clothColor,
+      clothRefraction: guiParams.clothRefraction,
+      clothIor: guiParams.clothIor,
+      clothDispersion: guiParams.clothDispersion,
+      clothThickness: guiParams.clothThickness,
+      clothLogoImage: guiParams.clothLogoImage,
+      clothReliefHeight: guiParams.clothReliefHeight,
     };
   }
 
@@ -663,6 +758,9 @@ async function init() {
     depthGain: depthGainCtrl, displacementScale: displacementScaleCtrl, maxVelocity: maxVelocityCtrl,
     clothEnabled: clothEnabledCtrl, clothGravity: clothGravityCtrl,
     clothWind: clothWindCtrl, clothDamping: clothDampingCtrl,
+    clothRoughness: clothRoughnessCtrl, clothMetalness: clothMetalnessCtrl, clothColor: clothColorCtrl,
+    clothRefraction: clothRefractionCtrl, clothIor: clothIorCtrl, clothDispersion: clothDispersionCtrl,
+    clothThickness: clothThicknessCtrl, clothLogoImage: clothLogoImageCtrl, clothReliefHeight: clothReliefCtrl,
   };
 
   function applyPreset(snapshot) {

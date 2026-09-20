@@ -54,6 +54,14 @@ export class VerletCloth {
     this.wind = 0.25;
     this.damping = 0.98; // velocity retained per step, implicit in Verlet's (pos - prev)
     this.iterations = 3; // constraint-relaxation passes per frame
+
+    // Static logo relief, embossed on top of the physics rather than fed
+    // into it — depthOffset converges toward depthTarget and gets added to
+    // each vertex's z only when writing to the geometry, so it doesn't
+    // fight (or get overwritten by) the constraint solver above.
+    this.depthTarget = new Float32Array(this.count);
+    this.depthOffset = new Float32Array(this.count);
+    this.depthGain = 10; // convergence rate toward depthTarget, in 1/sec
   }
 
   index(x, y) {
@@ -141,7 +149,16 @@ export class VerletCloth {
       }
     }
 
-    this.geometry.attributes.position.array.set(pos);
+    const { depthTarget, depthOffset } = this;
+    const depthLerp = Math.min(1, this.depthGain * dt);
+    const output = this.geometry.attributes.position.array;
+    for (let i = 0; i < count; i++) {
+      depthOffset[i] += (depthTarget[i] - depthOffset[i]) * depthLerp;
+      const ix = i * 3;
+      output[ix] = pos[ix];
+      output[ix + 1] = pos[ix + 1];
+      output[ix + 2] = pos[ix + 2] + depthOffset[i];
+    }
     this.geometry.attributes.position.needsUpdate = true;
     this.geometry.computeVertexNormals();
   }
