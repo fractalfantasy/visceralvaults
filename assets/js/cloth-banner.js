@@ -258,13 +258,18 @@ async function init() {
 
   const textureLoader = new THREE.TextureLoader();
   let currentEnvTexture = null;
+  let currentBackgroundTexture = null;
 
   function setEnvMap(url) {
     const previousTexture = currentEnvTexture;
+    const previousBackground = currentBackgroundTexture;
     if (!url) {
       scene.environment = null;
+      scene.background = null;
       currentEnvTexture = null;
+      currentBackgroundTexture = null;
       if (previousTexture) previousTexture.dispose();
+      if (previousBackground) previousBackground.dispose();
       return;
     }
     textureLoader.load(url, (tex) => {
@@ -273,6 +278,21 @@ async function init() {
       scene.environment = tex;
       currentEnvTexture = tex;
       if (previousTexture) previousTexture.dispose();
+    });
+    // The cloth mesh fills the whole viewport and is the only thing in the
+    // scene, so refraction/transmission has nothing behind it to sample —
+    // it reads a flat black backdrop no matter what thickness/IOR is set
+    // to, which is why "refraction depth" looked like it did nothing.
+    // Setting a plain (non-equirect) screen-space background gives it real
+    // spatial detail to bend; it stays fully hidden behind the opaque mesh
+    // until transmission reveals it. Loaded as a separate Texture (not
+    // reusing the equirect one) since it needs default UVMapping, sampled
+    // by screen UV, not by view direction.
+    textureLoader.load(url, (tex) => {
+      tex.colorSpace = THREE.SRGBColorSpace;
+      scene.background = tex;
+      currentBackgroundTexture = tex;
+      if (previousBackground) previousBackground.dispose();
     });
   }
 
