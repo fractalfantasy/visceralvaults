@@ -2,6 +2,7 @@ import * as THREE from "three/webgpu";
 import { bloom } from "three/addons/tsl/display/BloomNode.js";
 import { GUI } from "dat.gui";
 import { Cloth } from "./cloth.js";
+import { VerletCloth } from "./verlet-cloth.js";
 
 const canvas = document.getElementById("liquid-canvas");
 const fallback = document.querySelector(".hero-fallback");
@@ -187,6 +188,10 @@ async function init() {
   // for.
   const IS_MOBILE = window.matchMedia("(pointer: coarse)").matches;
   let VERTEX_BUDGET = IS_MOBILE ? 12000 : startupPreset.meshResolution;
+  // The cloth sim's folds read fine at a much lower vertex count than the
+  // logo relief needs, and it's off by default, so this stays fixed rather
+  // than following the liquid mesh's own resolution setting.
+  const CLOTH_VERTEX_BUDGET = IS_MOBILE ? 300 : 800;
   const RELIEF_HEIGHT = startupPreset.reliefHeight;
   // Ripple impulse per unit of relief-height change, weighted by the logo's
   // own shape (so a slider move pokes the cloth roughly like a full-strength
@@ -211,10 +216,22 @@ async function init() {
     displacementScale: 0.8,
   };
 
+  // Independent of the liquid mesh — off by default, and its physics update
+  // is skipped entirely (not just hidden) while disabled, so it costs
+  // nothing until switched on.
+  const clothSimParams = {
+    enabled: false,
+    gravity: -0.35,
+    wind: 0.25,
+    damping: 0.98,
+  };
+
   let PLANE_HEIGHT;
   let cloth;
   let logoGray;
   let mesh;
+  let verletCloth;
+  let clothMesh;
   let currentReliefHeight = 0; // what's actually baked into cloth.depthTarget right now
   let reliefHeightValue = RELIEF_HEIGHT; // last value asked for, survives mesh rebuilds
 
@@ -232,6 +249,15 @@ async function init() {
     ior: startupPreset.ior,
     dispersion: startupPreset.dispersion,
     thickness: startupPreset.thickness,
+  });
+
+  // Kept deliberately simple (no refraction/dispersion) since the cloth is
+  // an optional layer, not the main visual focus.
+  const clothMaterial = new THREE.MeshStandardMaterial({
+    color: 0x888888,
+    roughness: 0.6,
+    metalness: 0.1,
+    side: THREE.DoubleSide,
   });
 
   function applyReliefHeight(height, { ripple = false } = {}) {
@@ -296,6 +322,26 @@ async function init() {
 
     mesh = new THREE.Mesh(cloth.geometry, material);
     scene.add(mesh);
+
+    const clothSegX = Math.max(10, Math.round(Math.sqrt(CLOTH_VERTEX_BUDGET / PLANE_HEIGHT)));
+    const clothSegY = Math.max(6, Math.round(clothSegX * PLANE_HEIGHT));
+    if (clothMesh) {
+      scene.remove(clothMesh);
+      clothMesh.geometry.dispose();
+    }
+    verletCloth = new VerletCloth({
+      width: PLANE_WIDTH,
+      height: PLANE_HEIGHT,
+      segmentsX: clothSegX,
+      segmentsY: clothSegY,
+    });
+    verletCloth.gravity = clothSimParams.gravity;
+    verletCloth.wind = clothSimParams.wind;
+    verletCloth.damping = clothSimParams.damping;
+    clothMesh = new THREE.Mesh(verletCloth.geometry, clothMaterial);
+    clothMesh.position.z = 0.02; // clears the liquid mesh's own surface if both are shown at once
+    clothMesh.visible = clothSimParams.enabled;
+    scene.add(clothMesh);
 
     camera.top = PLANE_HEIGHT / 2;
     camera.bottom = -camera.top;
@@ -482,6 +528,33 @@ async function init() {
   const displacementScaleCtrl = addClothParamCtrl("displacementScale", 0, 3, 0.01, "height scale");
   const maxVelocityCtrl = addClothParamCtrl("maxVelocity", 50, 2000, 10, "max velocity (safety clamp)");
 
+  // ---------- cloth sim ----------
+  // A second, independent mesh (see verlet-cloth.js) — off by default, and
+  // its physics update is skipped entirely while disabled (not just
+  // hidden), so it costs nothing until switched on. Can be shown alongside
+  // the liquid mesh or on its own.
+  const clothSimFolder = gui.addFolder("Cloth Sim");
+  guiParams.clothEnabled = clothSimParams.enabled;
+  const clothEnabledCtrl = clothSimFolder.add(guiParams, "clothEnabled").name("enabled").onChange((v) => {
+    clothSimParams.enabled = v;
+    clothMesh.visible = v;
+  });
+  guiParams.clothGravity = clothSimParams.gravity;
+  const clothGravityCtrl = clothSimFolder.add(guiParams, "clothGravity", -2, 0, 0.01).name("gravity").onChange((v) => {
+    clothSimParams.gravity = v;
+    verletCloth.gravity = v;
+  });
+  guiParams.clothWind = clothSimParams.wind;
+  const clothWindCtrl = clothSimFolder.add(guiParams, "clothWind", 0, 2, 0.01).name("wind").onChange((v) => {
+    clothSimParams.wind = v;
+    verletCloth.wind = v;
+  });
+  guiParams.clothDamping = clothSimParams.damping;
+  const clothDampingCtrl = clothSimFolder.add(guiParams, "clothDamping", 0.8, 1, 0.001).name("damping").onChange((v) => {
+    clothSimParams.damping = v;
+    verletCloth.damping = v;
+  });
+
   const pointerFolder = gui.addFolder("Pointer");
   const pointerRadiusCtrl = pointerFolder.add(pointerParams, "radius", 0.01, 0.3, 0.005).name("mouse size");
   const pointerStrengthCtrl = pointerFolder.add(pointerParams, "strength", 0, 0.2, 0.005).name("liquid amount");
@@ -571,6 +644,10 @@ async function init() {
       depthGain: guiParams.depthGain,
       displacementScale: guiParams.displacementScale,
       maxVelocity: guiParams.maxVelocity,
+      clothEnabled: guiParams.clothEnabled,
+      clothGravity: guiParams.clothGravity,
+      clothWind: guiParams.clothWind,
+      clothDamping: guiParams.clothDamping,
     };
   }
 
@@ -584,6 +661,8 @@ async function init() {
     bloomRadius: bloomRadiusCtrl, bloomThreshold: bloomThresholdCtrl, bloomSoftness: bloomSoftnessCtrl,
     waveSpeed: waveSpeedCtrl, restoring: restoringCtrl, damping: dampingCtrl,
     depthGain: depthGainCtrl, displacementScale: displacementScaleCtrl, maxVelocity: maxVelocityCtrl,
+    clothEnabled: clothEnabledCtrl, clothGravity: clothGravityCtrl,
+    clothWind: clothWindCtrl, clothDamping: clothDampingCtrl,
   };
 
   function applyPreset(snapshot) {
@@ -797,6 +876,9 @@ async function init() {
         cloth.applyForce(x, y, pointerParams.radius, strength);
       }
     }
+    // Reuses the same "mouse size" radius as the liquid poke rather than
+    // adding a separate cloth-only control.
+    if (clothSimParams.enabled) verletCloth.grabAt(x, y, x, y, 0, pointerParams.radius);
     lastLocalX = x;
     lastLocalY = y;
   }
@@ -812,6 +894,7 @@ async function init() {
     e.preventDefault();
     const { x, y } = localFromEvent(e);
     cloth.applyForce(x, y, pointerParams.radius * 1.4, MAX_FORCE * pointerParams.strength);
+    if (clothSimParams.enabled) verletCloth.grabAt(x, y, x, y, 0, pointerParams.radius * 1.4);
     lastLocalX = x;
     lastLocalY = y;
   });
@@ -862,6 +945,7 @@ async function init() {
 
     updateAnimators(now / 1000);
     cloth.update(dt);
+    if (clothSimParams.enabled) verletCloth.simulate(dt, now / 1000);
     await postProcessing.renderAsync();
 
     raf = requestAnimationFrame(frame);
