@@ -153,6 +153,14 @@ main.wrap.open {
   right: auto !important;
   float: none !important;
   margin: 0 !important;
+  /* dat.gui's own "taller than window" auto-scroll (added once enough
+     folders exist, even ones that stay closed) sets overflow-y:auto on
+     this fixed, bottom-anchored box; combined with its height collapsing
+     to 0 while closed, that clips the "Open/Close Controls" button
+     entirely instead of just scrolling content. We keep every folder
+     collapsed by default anyway, so we don't need dat.gui's own scroll
+     behavior here. */
+  overflow: visible !important;
 }
 
 /* dat.gui sizes its own rows in pixels assuming the browser default

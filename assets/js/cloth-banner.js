@@ -94,11 +94,14 @@ async function init() {
   camera.position.set(0, 0, 3);
   camera.lookAt(0, 0, 0);
 
-  const material = new THREE.MeshStandardMaterial({
+  const material = new THREE.MeshPhysicalMaterial({
     color: 0x161616,
     roughness: 0.25,
     metalness: 0.31,
     side: THREE.DoubleSide,
+    transmission: 0,
+    ior: 1.5,
+    dispersion: 0,
   });
 
   function applyReliefHeight(height, { ripple = false } = {}) {
@@ -197,12 +200,26 @@ async function init() {
   // whatever the GUI slider is currently set to.
   const pointerParams = { radius: 0.155, strength: 0.025 };
 
-  const gui = new GUI();
+  // dat.gui's auto-scroll ("taller than window") math assumes the panel is
+  // anchored from the top of the screen and clamps its open height to the
+  // remaining space below it; anchored from the bottom (below) instead,
+  // that space reads as ~0 and the panel opens with no visible content.
+  // We don't need its scrolling — folders default closed anyway — so it's
+  // simplest to turn the feature off outright.
+  const gui = new GUI({ scrollable: false });
 
   const materialFolder = gui.addFolder("Material");
   const roughnessCtrl = materialFolder.add(guiParams, "roughness", 0, 1, 0.01);
   const metalnessCtrl = materialFolder.add(guiParams, "metalness", 0, 1, 0.01);
   materialFolder.addColor(guiParams, "color").onChange((v) => { material.color.set(v); });
+
+  guiParams.refraction = material.transmission > 0;
+  guiParams.ior = material.ior;
+  guiParams.dispersion = material.dispersion;
+  materialFolder.add(guiParams, "refraction").onChange((v) => { material.transmission = v ? 1 : 0; });
+  materialFolder.add(guiParams, "ior", 1, 2.333, 0.001).name("index of refraction").onChange((v) => { material.ior = v; });
+  // Dispersion only has a visible effect once refraction/transmission is on.
+  materialFolder.add(guiParams, "dispersion", 0, 5, 0.01).name("chromatic aberration").onChange((v) => { material.dispersion = v; });
 
   // Hotlinked rather than vendored — 130 panoramas would bloat the repo,
   // and the host already serves them with permissive CORS headers so they
