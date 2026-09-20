@@ -128,14 +128,13 @@ main.wrap {
   bottom: 24px;
   z-index: 2;
   overflow-y: auto;
+  display: none;
   opacity: 0;
-  pointer-events: none;
   transition: opacity 0.2s ease;
 }
 
 main.wrap.open {
   opacity: 1;
-  pointer-events: auto;
 }
 
 /* dat.gui's outer container hardcodes z-index:0, same level as the fixed
@@ -154,10 +153,6 @@ main.wrap.open {
   right: auto !important;
   float: none !important;
   margin: 0 !important;
-}
-
-main.wrap .release-grid {
-  pointer-events: auto;
 }
 
 .hero-fallback[hidden] {

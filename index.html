@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=15">
+<link rel="stylesheet" href="assets/css/style.css?v=16">
 <script type="importmap">
 {
   "imports": {
@@ -60,9 +60,26 @@
   const releasesCta = document.getElementById("releases-cta");
   const mainWrap = document.querySelector("main.wrap");
   const releasesOverlay = document.getElementById("releases-overlay");
+
   releasesCta?.addEventListener("click", () => {
-    mainWrap?.classList.toggle("open");
-    releasesOverlay?.classList.toggle("open");
+    const opening = !mainWrap?.classList.contains("open");
+    releasesOverlay?.classList.toggle("open", opening);
+
+    if (opening) {
+      // display:none blocks all hit-testing, so it has to come off before the
+      // opacity transition starts (opacity alone doesn't stop clicks from
+      // reaching the grid and being lost instead of hitting the WebGL canvas).
+      mainWrap.style.display = "block";
+      void mainWrap.offsetHeight; // force layout so the display change commits first
+      mainWrap.classList.add("open");
+    } else {
+      mainWrap?.classList.remove("open");
+      mainWrap?.addEventListener("transitionend", function onDone(e) {
+        if (e.target !== mainWrap || e.propertyName !== "opacity") return;
+        mainWrap.removeEventListener("transitionend", onDone);
+        mainWrap.style.display = "none";
+      });
+    }
   });
 </script>
 <script type="module" src="assets/js/cloth-banner.js?v=9"></script>
