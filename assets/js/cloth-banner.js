@@ -38,16 +38,56 @@ function loadImage(src) {
 // Downsamples straight to the cloth's grid resolution so each vertex gets a
 // smoothly-averaged value (letting the canvas's own image scaling do the
 // blur) instead of point-sampling a high-contrast image, which at a coarse
-// vertex grid would alias into a patchy, noisy-looking relief.
-function sampleImageGrid(img, gridW, gridH) {
+// vertex grid would alias into a patchy, noisy-looking relief. `crop`
+// restricts the source region drawn, so the letters can be sampled without
+// whatever padding the source image has around them.
+function sampleImageGrid(img, gridW, gridH, crop) {
   const c = document.createElement("canvas");
   c.width = gridW;
   c.height = gridH;
   const ctx = c.getContext("2d");
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(img, 0, 0, gridW, gridH);
+  ctx.drawImage(img, crop.x, crop.y, crop.width, crop.height, 0, 0, gridW, gridH);
   return ctx.getImageData(0, 0, gridW, gridH).data;
+}
+
+// Different source images have different amounts of padding around the
+// letters (some cropped tight by hand, some not), so instead of hardcoding
+// one image's crop we detect the bright-pixel bounding box at load time and
+// pad it a little, working the same way for any displacement image chosen
+// from the GUI dropdown.
+function computeTightBounds(img, threshold = 15) {
+  const c = document.createElement("canvas");
+  c.width = img.naturalWidth;
+  c.height = img.naturalHeight;
+  const ctx = c.getContext("2d", { willReadFrequently: true });
+  ctx.drawImage(img, 0, 0);
+  const { data, width, height } = ctx.getImageData(0, 0, c.width, c.height);
+
+  let x0 = width, y0 = height, x1 = -1, y1 = -1;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (data[(y * width + x) * 4] > threshold) {
+        if (x < x0) x0 = x;
+        if (x > x1) x1 = x;
+        if (y < y0) y0 = y;
+        if (y > y1) y1 = y;
+      }
+    }
+  }
+
+  if (x1 < x0 || y1 < y0) return { x: 0, y: 0, width, height }; // nothing above threshold
+
+  const bboxW = x1 - x0;
+  const bboxH = y1 - y0;
+  const padX = bboxW * 0.03;
+  const padY = bboxH * 0.1;
+  const cx0 = Math.max(0, x0 - padX);
+  const cy0 = Math.max(0, y0 - padY);
+  const cx1 = Math.min(width, x1 + padX);
+  const cy1 = Math.min(height, y1 + padY);
+  return { x: cx0, y: cy0, width: cx1 - cx0, height: cy1 - cy0 };
 }
 
 async function init() {
@@ -59,7 +99,15 @@ async function init() {
   await renderer.init();
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 
-  const logoImage = await loadImage("assets/img/site/vvlogoblur-tight.png");
+  const LOGO_IMAGE_BASE = "assets/img/site/";
+  const logoImageOptions = {
+    "Blur (tight)": "vvlogoblur-tight.png",
+    "Blur (original)": "vvlogoblur.png",
+    "Blur 2": "vvlogoblur2.png",
+    "Blur 3": "vvlogoblur3.png",
+  };
+  let logoImage = await loadImage(LOGO_IMAGE_BASE + logoImageOptions["Blur (tight)"]);
+  let logoCrop = computeTightBounds(logoImage);
 
   // The banner is a fixed full-viewport background, so the mesh matches the
   // viewport's aspect instead of the logo's — the logo occupies a band at
@@ -69,8 +117,8 @@ async function init() {
   // camera get rebuilt together whenever that aspect changes (debounced —
   // see resize() below) so they never drift out of sync with each other.
   const PLANE_WIDTH = 1;
-  const LOGO_ASPECT = 732 / 240; // vvlogoblur-tight.png, cropped tight to the letters
-  const LOGO_BAND_HEIGHT = PLANE_WIDTH / LOGO_ASPECT;
+  let LOGO_ASPECT = logoCrop.width / logoCrop.height;
+  let LOGO_BAND_HEIGHT = PLANE_WIDTH / LOGO_ASPECT;
   // Where the logo band's own center sits, as a fraction of viewport height
   // down from the top. 0.5 = vertically centered.
   const LOGO_CENTER_FRACTION = 0.5;
@@ -95,7 +143,7 @@ async function init() {
   camera.lookAt(0, 0, 0);
 
   const material = new THREE.MeshPhysicalMaterial({
-    color: 0xf7f7f7,
+    color: 0x000000,
     roughness: 0.28,
     metalness: 0.46,
     side: THREE.DoubleSide,
@@ -148,7 +196,7 @@ async function init() {
     const bandRows = Math.max(1, Math.round(segY * (LOGO_BAND_HEIGHT / PLANE_HEIGHT)));
     const bandCenterRow = Math.round(segY * LOGO_CENTER_FRACTION);
     const bandStartRow = Math.max(0, Math.round(bandCenterRow - bandRows / 2));
-    const pixels = sampleImageGrid(logoImage, gridW, bandRows + 1);
+    const pixels = sampleImageGrid(logoImage, gridW, bandRows + 1, logoCrop);
     const newLogoGray = new Float32Array(newCloth.count); // zero-filled outside the band
     for (let i = 0; i <= bandRows; i++) {
       const gy = bandStartRow + i;
@@ -178,8 +226,8 @@ async function init() {
 
   buildCloth();
 
-  const pointLight = new THREE.PointLight(0xffffff, 1, 0, 0);
-  pointLight.position.set(-0.36, 1.06, 0.57);
+  const pointLight = new THREE.PointLight(0xffffff, 4.1, 0, 0);
+  pointLight.position.set(-0.85, 1.08, 0.57);
   scene.add(pointLight);
 
   const ambient = new THREE.AmbientLight(0xffffff, 0.12);
@@ -311,7 +359,19 @@ async function init() {
   const lightIntensityCtrl = lightFolder.add(guiParams, "lightIntensity", 0, 20, 0.1).name("brightness");
 
   const displacementFolder = gui.addFolder("Displacement");
-  const reliefCtrl = displacementFolder.add(guiParams, "reliefHeight", 0, 0.6, 0.005).name("depth map amount");
+  guiParams.logoImage = logoImageOptions["Blur (tight)"];
+  displacementFolder.add(guiParams, "logoImage", logoImageOptions).name("displacement image").onChange(async (filename) => {
+    logoImage = await loadImage(LOGO_IMAGE_BASE + filename);
+    logoCrop = computeTightBounds(logoImage);
+    LOGO_ASPECT = logoCrop.width / logoCrop.height;
+    LOGO_BAND_HEIGHT = PLANE_WIDTH / LOGO_ASPECT;
+    buildCloth();
+  });
+  // dat.gui's setValue() rounds every value to the nearest step — including
+  // ones set programmatically by an animator, not just manual drags — so a
+  // coarse step here visibly staircases the animated depth-map amount
+  // instead of moving smoothly.
+  const reliefCtrl = displacementFolder.add(guiParams, "reliefHeight", 0, 0.6, 0.0001).name("depth map amount");
 
   const pointerFolder = gui.addFolder("Pointer");
   pointerFolder.add(pointerParams, "radius", 0.01, 0.3, 0.005).name("mouse size");
@@ -335,12 +395,9 @@ async function init() {
   const scenePass = THREE.pass(scene, camera);
   const sceneColor = scenePass.getTextureNode();
 
-  const BLOOM_STRENGTH = 0.01;
+  const BLOOM_STRENGTH = 1;
   const BLOOM_RADIUS = 0.41;
-  // Tuned when the point light ran at intensity 20; now that it defaults
-  // to 1, nothing in the scene reaches a threshold of 1 (no tone mapping,
-  // so luminance rarely exceeds 1.0) and bloom silently does nothing.
-  const BLOOM_THRESHOLD = 0.05;
+  const BLOOM_THRESHOLD = 0.85;
   const bloomPass = bloom(sceneColor, BLOOM_STRENGTH, BLOOM_RADIUS, BLOOM_THRESHOLD);
   const bloomOutputNode = sceneColor.add(bloomPass);
   postProcessing.outputNode = BLOOM_STRENGTH > 0 ? bloomOutputNode : sceneColor;
