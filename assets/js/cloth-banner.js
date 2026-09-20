@@ -500,15 +500,34 @@ async function init() {
 
   let customPresets = loadCustomPresets();
 
+  // A saved custom preset always wins over a built-in of the same name, so
+  // overwriting "Red Candy Paint" (a built-in) sticks — the override is
+  // what's in localStorage, not the hardcoded snapshot taken at load time.
+  function resolvePreset(name) {
+    return customPresets[name] || BUILT_IN_PRESETS[name];
+  }
+
+  function saveCurrentAsPreset(name) {
+    customPresets[name] = getPresetSnapshot();
+    localStorage.setItem(PRESETS_STORAGE_KEY, JSON.stringify(customPresets));
+  }
+
   let presetCtrl = null;
   function rebuildPresetDropdown(selected) {
     if (presetCtrl) presetsFolder.remove(presetCtrl);
     const options = Object.keys({ ...BUILT_IN_PRESETS, ...customPresets });
     guiParams.preset = selected;
     presetCtrl = presetsFolder.add(guiParams, "preset", options).name("load preset").onChange((name) => {
-      applyPreset(BUILT_IN_PRESETS[name] || customPresets[name]);
+      applyPreset(resolvePreset(name));
     });
   }
+
+  presetsFolder.add({
+    save: () => {
+      if (!guiParams.preset) return;
+      saveCurrentAsPreset(guiParams.preset);
+    },
+  }, "save").name("+ save preset");
 
   guiParams.newPresetName = "";
   presetsFolder.add(guiParams, "newPresetName").name("new preset name");
@@ -516,14 +535,17 @@ async function init() {
     save: () => {
       const name = guiParams.newPresetName.trim();
       if (!name) return;
-      customPresets[name] = getPresetSnapshot();
-      localStorage.setItem(PRESETS_STORAGE_KEY, JSON.stringify(customPresets));
+      saveCurrentAsPreset(name);
       guiParams.newPresetName = "";
       rebuildPresetDropdown(name);
     },
   }, "save").name("+ save as preset");
 
   rebuildPresetDropdown(DEFAULT_PRESET_NAME);
+  // A localStorage override of the default preset (from "+ save preset")
+  // was saved after the material was already built with the hardcoded
+  // built-in values, so apply it now to make the override actually load.
+  if (customPresets[DEFAULT_PRESET_NAME]) applyPreset(customPresets[DEFAULT_PRESET_NAME]);
 
   // ---------- animators ----------
   // Each animator drives one target parameter as base + amount*sin(2*pi*speed*t),
