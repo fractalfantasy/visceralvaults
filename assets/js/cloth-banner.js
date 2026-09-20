@@ -122,7 +122,10 @@ async function init() {
   // Where the logo band's own center sits, as a fraction of viewport height
   // down from the top. 0.5 = vertically centered.
   const LOGO_CENTER_FRACTION = 0.5;
-  let VERTEX_BUDGET = 45000;
+  // Touch/coarse-pointer devices skew toward weaker GPUs, so start them at
+  // the Mesh folder's "Low" resolution instead of the desktop default.
+  const IS_MOBILE = window.matchMedia("(pointer: coarse)").matches;
+  let VERTEX_BUDGET = IS_MOBILE ? 12000 : 45000;
   const RELIEF_HEIGHT = 0.04;
   // Ripple impulse per unit of relief-height change, weighted by the logo's
   // own shape (so a slider move pokes the cloth roughly like a full-strength
