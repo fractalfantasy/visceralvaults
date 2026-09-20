@@ -337,7 +337,10 @@ async function init() {
 
   const BLOOM_STRENGTH = 0.01;
   const BLOOM_RADIUS = 0.41;
-  const BLOOM_THRESHOLD = 1;
+  // Tuned when the point light ran at intensity 20; now that it defaults
+  // to 1, nothing in the scene reaches a threshold of 1 (no tone mapping,
+  // so luminance rarely exceeds 1.0) and bloom silently does nothing.
+  const BLOOM_THRESHOLD = 0.05;
   const bloomPass = bloom(sceneColor, BLOOM_STRENGTH, BLOOM_RADIUS, BLOOM_THRESHOLD);
   const bloomOutputNode = sceneColor.add(bloomPass);
   postProcessing.outputNode = BLOOM_STRENGTH > 0 ? bloomOutputNode : sceneColor;
