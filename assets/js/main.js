@@ -24,7 +24,6 @@ function releaseCardHTML(r) {
       <img src="${r.cover}" alt="${r.title} cover art" loading="lazy">
       <p class="r-title">${r.title}</p>
       <p class="r-artist">${r.artist}</p>
-      <p class="r-date">${new Date(r.date).getFullYear()}</p>
     </button>
   `;
 }

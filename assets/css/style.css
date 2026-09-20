@@ -81,11 +81,26 @@ a {
   padding: 0 24px;
 }
 
+.releases-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  background: rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.releases-overlay.open {
+  opacity: 1;
+}
+
 .hero-cta {
-  position: absolute;
+  position: fixed;
   top: 48px;
   left: 50%;
   transform: translate(-50%, 0);
+  z-index: 3;
   padding: 14px 36px;
   font-size: 13px;
   font-family: var(--font-body);
@@ -111,14 +126,16 @@ main.wrap {
   left: 0;
   right: 0;
   bottom: 24px;
-  z-index: 1;
+  z-index: 2;
   overflow-y: auto;
-  display: none;
+  opacity: 0;
   pointer-events: none;
+  transition: opacity 0.2s ease;
 }
 
 main.wrap.open {
-  display: block;
+  opacity: 1;
+  pointer-events: auto;
 }
 
 /* dat.gui's outer container hardcodes z-index:0, same level as the fixed

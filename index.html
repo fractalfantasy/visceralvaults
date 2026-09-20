@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=13">
+<link rel="stylesheet" href="assets/css/style.css?v=15">
 <script type="importmap">
 {
   "imports": {
@@ -26,8 +26,11 @@
 <section class="hero" id="hero">
   <canvas id="liquid-canvas" role="img" aria-label="Visceral Vaults"></canvas>
   <img class="hero-fallback" src="assets/img/site/vvlogo.png" alt="Visceral Vaults" hidden>
-  <button class="hero-cta" id="releases-cta">Releases</button>
 </section>
+
+<div class="releases-overlay" id="releases-overlay"></div>
+
+<button class="hero-cta" id="releases-cta">Releases</button>
 
 <main class="wrap">
   <section class="section">
@@ -50,17 +53,19 @@
   </div>
 </div>
 
-<script src="assets/js/main.js"></script>
+<script src="assets/js/main.js?v=2"></script>
 <script>
   loadReleases().then((releases) => initReleaseGrid(releases, "#release-grid"));
 
   const releasesCta = document.getElementById("releases-cta");
   const mainWrap = document.querySelector("main.wrap");
+  const releasesOverlay = document.getElementById("releases-overlay");
   releasesCta?.addEventListener("click", () => {
     mainWrap?.classList.toggle("open");
+    releasesOverlay?.classList.toggle("open");
   });
 </script>
-<script type="module" src="assets/js/cloth-banner.js?v=8"></script>
+<script type="module" src="assets/js/cloth-banner.js?v=9"></script>
 
 </body>
 </html>

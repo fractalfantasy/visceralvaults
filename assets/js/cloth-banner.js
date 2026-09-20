@@ -50,7 +50,7 @@ async function init() {
   await renderer.init();
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 
-  const logoImage = await loadImage("assets/img/site/vvlogoblur.png");
+  const logoImage = await loadImage("assets/img/site/vvlogoblur-tight.png");
 
   // The banner is a fixed full-viewport background, so the mesh matches the
   // viewport's aspect instead of the logo's — the logo occupies a band at
@@ -60,7 +60,7 @@ async function init() {
   // camera get rebuilt together whenever that aspect changes (debounced —
   // see resize() below) so they never drift out of sync with each other.
   const PLANE_WIDTH = 1;
-  const LOGO_ASPECT = 996 / 500;
+  const LOGO_ASPECT = 732 / 240; // vvlogoblur-tight.png, cropped tight to the letters
   const LOGO_BAND_HEIGHT = PLANE_WIDTH / LOGO_ASPECT;
   // Where the logo band's own center sits, as a fraction of viewport height
   // down from the top. 0.5 = vertically centered.
