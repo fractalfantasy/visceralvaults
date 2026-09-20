@@ -2,7 +2,7 @@ import * as THREE from "three/webgpu";
 import { bloom } from "three/addons/tsl/display/BloomNode.js";
 import { GUI } from "dat.gui";
 import { Cloth } from "./cloth.js?v=1";
-import { VerletCloth } from "./verlet-cloth.js?v=3";
+import { VerletCloth } from "./verlet-cloth.js?v=4";
 
 const canvas = document.getElementById("liquid-canvas");
 const fallback = document.querySelector(".hero-fallback");
@@ -655,7 +655,7 @@ async function init() {
   const lightFolder = gui.addFolder("Point Light");
   const lightXCtrl = lightFolder.add(guiParams, "lightX", -2, 2, 0.01);
   const lightYCtrl = lightFolder.add(guiParams, "lightY", -2, 2, 0.01);
-  const lightZCtrl = lightFolder.add(guiParams, "lightZ", 0, 5, 0.01);
+  const lightZCtrl = lightFolder.add(guiParams, "lightZ", 0, 20, 0.01);
   const lightIntensityCtrl = lightFolder.add(guiParams, "lightIntensity", 0, 20, 0.1).name("brightness");
 
   // ---------- liquid sim ----------
@@ -903,6 +903,22 @@ async function init() {
       saveCurrentAsPreset(guiParams.preset);
     },
   }, "save").name("+ save preset");
+  presetsFolder.add({
+    // Every shared (data/presets.json) and locally-saved preset, merged
+    // into one file in exactly the shape data/presets.json expects — the
+    // easiest way to hand a batch of new/edited presets back for baking
+    // into the repo, rather than copying values by hand.
+    download: () => {
+      const allPresets = { ...sharedPresets, ...customPresets };
+      const blob = new Blob([JSON.stringify(allPresets, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "presets.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    },
+  }, "download").name("+ download all as json");
 
   // The scene was already built from startupPreset's values directly (see
   // top of init()), so this just makes the dropdown reflect that choice —

@@ -169,15 +169,28 @@ export class VerletCloth {
       }
     }
 
+    // The relief has to pop out along whichever way this bit of fabric is
+    // currently facing, not along a fixed world axis — a folded-over region
+    // faces the opposite way, and offsetting by flat +Z there embosses the
+    // logo backwards (most visible once refraction reveals the surface's
+    // real shape). So: write the un-embossed positions first, ask three.js
+    // for the normals that result, then push each vertex out along ITS OWN
+    // current normal before the final normal recompute for lighting.
+    const output = this.geometry.attributes.position.array;
+    output.set(pos);
+    this.geometry.attributes.position.needsUpdate = true;
+    this.geometry.computeVertexNormals();
+    const normals = this.geometry.attributes.normal.array;
+
     const { depthTarget, depthOffset } = this;
     const depthLerp = Math.min(1, this.depthGain * dt);
-    const output = this.geometry.attributes.position.array;
     for (let i = 0; i < count; i++) {
       depthOffset[i] += (depthTarget[i] - depthOffset[i]) * depthLerp;
       const ix = i * 3;
-      output[ix] = pos[ix];
-      output[ix + 1] = pos[ix + 1];
-      output[ix + 2] = pos[ix + 2] + depthOffset[i];
+      const offset = depthOffset[i];
+      output[ix] = pos[ix] + normals[ix] * offset;
+      output[ix + 1] = pos[ix + 1] + normals[ix + 1] * offset;
+      output[ix + 2] = pos[ix + 2] + normals[ix + 2] * offset;
     }
     this.geometry.attributes.position.needsUpdate = true;
     this.geometry.computeVertexNormals();
