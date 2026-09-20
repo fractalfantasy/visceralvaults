@@ -260,12 +260,27 @@ async function init() {
   let currentEnvTexture = null;
   let currentBackgroundTexture = null;
 
+  // The cloth mesh fills the whole viewport and is the only other thing in
+  // the scene, so refraction/transmission had nothing behind it to sample —
+  // it read a flat black backdrop no matter what thickness/IOR was set to.
+  // A big sphere textured on the inside gives the camera (which sits well
+  // inside it) an actual surrounding environment to bend through, the way
+  // a skybox works — it stays hidden behind the opaque mesh normally and
+  // only shows/warps once transmission reveals it.
+  const BACKGROUND_SPHERE_RADIUS = 6;
+  const backgroundSphere = new THREE.Mesh(
+    new THREE.SphereGeometry(BACKGROUND_SPHERE_RADIUS, 60, 40),
+    new THREE.MeshBasicMaterial({ side: THREE.BackSide }),
+  );
+  backgroundSphere.visible = false;
+  scene.add(backgroundSphere);
+
   function setEnvMap(url) {
     const previousTexture = currentEnvTexture;
     const previousBackground = currentBackgroundTexture;
     if (!url) {
       scene.environment = null;
-      scene.background = null;
+      backgroundSphere.visible = false;
       currentEnvTexture = null;
       currentBackgroundTexture = null;
       if (previousTexture) previousTexture.dispose();
@@ -279,18 +294,13 @@ async function init() {
       currentEnvTexture = tex;
       if (previousTexture) previousTexture.dispose();
     });
-    // The cloth mesh fills the whole viewport and is the only thing in the
-    // scene, so refraction/transmission has nothing behind it to sample —
-    // it reads a flat black backdrop no matter what thickness/IOR is set
-    // to, which is why "refraction depth" looked like it did nothing.
-    // Setting a plain (non-equirect) screen-space background gives it real
-    // spatial detail to bend; it stays fully hidden behind the opaque mesh
-    // until transmission reveals it. Loaded as a separate Texture (not
-    // reusing the equirect one) since it needs default UVMapping, sampled
-    // by screen UV, not by view direction.
+    // Loaded as a separate Texture (not reusing the equirect one) since the
+    // sphere needs the image mapped by its own UVs, not by view direction.
     textureLoader.load(url, (tex) => {
       tex.colorSpace = THREE.SRGBColorSpace;
-      scene.background = tex;
+      backgroundSphere.material.map = tex;
+      backgroundSphere.material.needsUpdate = true;
+      backgroundSphere.visible = true;
       currentBackgroundTexture = tex;
       if (previousBackground) previousBackground.dispose();
     });
