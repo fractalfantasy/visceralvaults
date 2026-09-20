@@ -204,6 +204,37 @@ async function init() {
   const metalnessCtrl = materialFolder.add(guiParams, "metalness", 0, 1, 0.01);
   materialFolder.addColor(guiParams, "color").onChange((v) => { material.color.set(v); });
 
+  // Hotlinked rather than vendored — 130 panoramas would bloat the repo,
+  // and the host already serves them with permissive CORS headers so they
+  // can be loaded straight into a WebGPU texture.
+  const ENVMAP_BASE = "https://fractalfantasy.net/waterball/build/pano/";
+  const envMapOptions = { None: "" };
+  for (let i = 3; i <= 132; i++) envMapOptions[`Pano ${i}`] = `${ENVMAP_BASE}pano${i}.jpg`;
+
+  const textureLoader = new THREE.TextureLoader();
+  let currentEnvTexture = null;
+
+  function setEnvMap(url) {
+    const previousTexture = currentEnvTexture;
+    if (!url) {
+      scene.environment = null;
+      currentEnvTexture = null;
+      if (previousTexture) previousTexture.dispose();
+      return;
+    }
+    textureLoader.load(url, (tex) => {
+      tex.mapping = THREE.EquirectangularReflectionMapping;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      scene.environment = tex;
+      currentEnvTexture = tex;
+      if (previousTexture) previousTexture.dispose();
+    });
+  }
+
+  guiParams.envMap = "";
+  const envFolder = gui.addFolder("Environment");
+  envFolder.add(guiParams, "envMap", envMapOptions).name("env map").onChange(setEnvMap);
+
   const lightFolder = gui.addFolder("Point Light");
   const lightXCtrl = lightFolder.add(guiParams, "lightX", -2, 2, 0.01);
   const lightYCtrl = lightFolder.add(guiParams, "lightY", -2, 2, 0.01);
