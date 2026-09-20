@@ -1,81 +1,99 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Generator: Adobe Illustrator 13.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 14948)  -->
-<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="128px"
-	 height="128px" viewBox="0 0 128 128" enable-background="new 0 0 128 128" xml:space="preserve">
-<defs>
-<filter id="Gaussian_Blur">
-<feGaussianBlur in="SourceGraphic" stdDeviation="3" />
-</filter>
-<filter id="Gaussian_Blur2">
-<feGaussianBlur in="SourceGraphic" stdDeviation="1" />
-</filter>
-</defs>
-<g id="Layer_3" opacity="0.6">
-	<g>
-		<path d="M63.063,8.67c-30.427,0-55.092,24.666-55.092,55.092c0,30.428,24.666,55.093,55.092,55.093
-			c30.428,0,55.092-24.665,55.092-55.093C118.155,33.335,93.491,8.67,63.063,8.67z M63.063,79.033
-			c-7.609,0-13.777-6.168-13.777-13.776c0-7.609,6.168-13.778,13.777-13.778c7.607,0,13.777,6.169,13.777,13.778
-			C76.841,72.865,70.671,79.033,63.063,79.033z" style="filter:url(#Gaussian_Blur2)"/>
-	</g>
-</g>
-<g id="Layer_3_copy">
-	<g>
-		<path fill="#E5E5E5" stroke="#858585" stroke-width="0.5" d="M61.5,6.466c-30.427,0-55.092,24.666-55.092,55.092
-			c0,30.428,24.666,55.092,55.092,55.092c30.428,0,55.092-24.664,55.092-55.092C116.592,31.132,91.928,6.466,61.5,6.466z
-			 M61.5,76.83c-7.609,0-13.777-6.169-13.777-13.777S53.891,49.276,61.5,49.276c7.607,0,13.777,6.168,13.777,13.777
-			S69.107,76.83,61.5,76.83z"/>
-	</g>
-</g>
-<g id="Layer_1">
-	<g>
-		<linearGradient id="SVGID_1_" gradientUnits="userSpaceOnUse" x1="56.686" y1="13.9155" x2="66.353" y2="109.582">
-			<stop  offset="0" style="stop-color:#CCCCCC"/>
-			<stop  offset="1" style="stop-color:#A1A6A8"/>
-		</linearGradient>
-		<path fill="url(#SVGID_1_)" d="M61.5,8.389c-29.365,0-53.17,23.805-53.17,53.17s23.805,53.17,53.17,53.17
-			s53.17-23.805,53.17-53.17S90.865,8.389,61.5,8.389z M61.5,76.297c-7.344,0-13.297-5.953-13.297-13.296S54.156,49.705,61.5,49.705
-			c7.343,0,13.297,5.953,13.297,13.296S68.843,76.297,61.5,76.297z"/>
-	</g>
-	<g>
-		<g>
-			<defs>
-				<path id="SVGID_2_" d="M61.5,8.389c-29.365,0-53.17,23.805-53.17,53.17s23.805,53.17,53.17,53.17s53.17-23.805,53.17-53.17
-					S90.865,8.389,61.5,8.389z M61.5,76.297c-7.344,0-13.297-5.953-13.297-13.296S54.156,49.705,61.5,49.705
-					c7.343,0,13.297,5.953,13.297,13.296S68.843,76.297,61.5,76.297z"/>
-			</defs>
-			<clipPath id="SVGID_3_">
-				<use xlink:href="#SVGID_2_"  overflow="visible"/>
-			</clipPath>
-			<polygon opacity="0.5" clip-path="url(#SVGID_3_)" fill="#FF3D45" points="152.237,72.892 61.5,64.288 -29.238,72.892
-				-29.238,55.687 61.5,64.288 152.237,55.687 			" style="filter:url(#Gaussian_Blur)"/>
-			<polygon opacity="0.5" clip-path="url(#SVGID_3_)" fill="#E0FFFF" points="-10.94,127.093 61.184,63.012 75.678,-32.375
-				133.301,-1.077 61.184,63.012 46.678,158.391 			" style="filter:url(#Gaussian_Blur)"/>
-			<polygon clip-path="url(#SVGID_3_)" fill="#FFFFFF" points="0.146,133.114 61.182,63.011 86.764,-26.354 122.215,-7.099
-				61.182,63.011 35.592,152.368 			" style="filter:url(#Gaussian_Blur)"/>
-			<polygon opacity="0.5" clip-path="url(#SVGID_3_)" fill="#FF8000" points="144.783,84.571 61.5,64.288 -24.111,60.02
-				-21.784,44.008 61.5,64.288 147.11,68.559 			" style="filter:url(#Gaussian_Blur)"/>
-			<polygon opacity="0.5" clip-path="url(#SVGID_3_)" fill="#FFFF00" points="137.329,96.25 61.5,64.288 -18.984,47.148
-				-14.329,32.329 61.5,64.288 141.984,81.431 			" style="filter:url(#Gaussian_Blur)"/>
-			<polygon opacity="0.5" clip-path="url(#SVGID_3_)" fill="#5EFF00" points="129.875,107.929 61.5,64.288 -13.857,34.276
-				-6.875,20.65 61.5,64.288 136.857,94.303 			" style="filter:url(#Gaussian_Blur)"/>
-			<polygon opacity="0.5" clip-path="url(#SVGID_3_)" fill="#00D3DF" points="122.421,119.608 61.5,64.289 -8.73,21.403 0.58,8.97
-				61.5,64.289 131.731,107.175 			" style="filter:url(#Gaussian_Blur)"/>
-			<polygon opacity="0.5" clip-path="url(#SVGID_3_)" fill="#0012DF" points="114.967,131.287 61.501,64.289 -3.604,8.532
-				8.034,-2.708 61.501,64.289 126.605,120.047 			" style="filter:url(#Gaussian_Blur)"/>
-			<polygon opacity="0.5" clip-path="url(#SVGID_3_)" fill="#6B476B" points="107.513,142.967 61.501,64.289 1.523,-4.34
-				15.488,-14.387 61.501,64.289 121.479,132.919 			" style="filter:url(#Gaussian_Blur)"/>
-		</g>
-	</g>
-</g>
-<g id="Layer_2">
-	<g>
-		<path opacity="0.22" fill="#636363" stroke="#000000" stroke-width="0.25" d="M61.5,46.661c-9.024,0-16.34,7.315-16.34,16.34
-			c0,9.024,7.315,16.339,16.34,16.339S77.84,72.024,77.84,63C77.84,53.976,70.524,46.661,61.5,46.661z M61.5,68.316
-			c-2.986,0-5.407-2.421-5.407-5.406c0-2.986,2.421-5.406,5.407-5.406c2.985,0,5.407,2.42,5.407,5.406
-			C66.906,65.896,64.485,68.316,61.5,68.316z"/>
-	</g>
-	<circle opacity="0.5" fill="none" stroke="#505050" stroke-width="0.25" cx="61.5" cy="62.88" r="10.693"/>
-	<ellipse opacity="0.3" fill="none" stroke="#505050" stroke-width="0.25" cx="61.5" cy="62.88" rx="6.788" ry="6.667"/>
-</g>
+<?xml version="1.0"?>
+<svg xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns="http://www.w3.org/2000/svg" xmlns:cc="http://web.resource.org/cc/" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:svg="http://www.w3.org/2000/svg" id="svg2" viewBox="0 0 327.06 323.64" version="1.0">
+  <defs id="defs4">
+    <filter id="filter11193" y="-.10228" width="1.6059" height="1.2046" x="-.30296">
+      <feGaussianBlur id="feGaussianBlur11195" stdDeviation="18.143585"/>
+    </filter>
+    <filter id="filter11189" y="-.10558" width="1.3552" height="1.2112" x="-.17762">
+      <feGaussianBlur id="feGaussianBlur11191" stdDeviation="18.143585"/>
+    </filter>
+    <filter id="filter11185" y="-.12123" width="1.2641" height="1.2425" x="-.13204">
+      <feGaussianBlur id="feGaussianBlur11187" stdDeviation="18.143585"/>
+    </filter>
+    <filter id="filter11181" y="-.15457" width="1.2172" height="1.3091" x="-.1086">
+      <feGaussianBlur id="feGaussianBlur11183" stdDeviation="18.143585"/>
+    </filter>
+    <clipPath id="clipPath4248" clipPathUnits="userSpaceOnUse">
+      <path id="path4250" opacity=".79008" d="m372.84 260.94c-117.49 0-212.84 95.34-212.84 212.84s95.35 212.88 212.84 212.88c117.5 0 212.88-95.38 212.88-212.88s-95.38-212.84-212.88-212.84zm0 160c29.18 0 52.88 23.66 52.88 52.84s-23.7 52.88-52.88 52.88c-29.17 0-52.84-23.7-52.84-52.88s23.67-52.84 52.84-52.84z" style="color:#000000" fill="#666"/>
+    </clipPath>
+    <clipPath id="clipPath4244" clipPathUnits="userSpaceOnUse">
+      <path id="path4246" opacity=".79008" d="m372.84 260.94c-117.49 0-212.84 95.34-212.84 212.84s95.35 212.88 212.84 212.88c117.5 0 212.88-95.38 212.88-212.88s-95.38-212.84-212.88-212.84zm0 160c29.18 0 52.88 23.66 52.88 52.84s-23.7 52.88-52.88 52.88c-29.17 0-52.84-23.7-52.84-52.88s23.67-52.84 52.84-52.84z" style="color:#000000" fill="#666"/>
+    </clipPath>
+    <clipPath id="clipPath4240" clipPathUnits="userSpaceOnUse">
+      <path id="path4242" opacity=".79008" d="m372.84 260.94c-117.49 0-212.84 95.34-212.84 212.84s95.35 212.88 212.84 212.88c117.5 0 212.88-95.38 212.88-212.88s-95.38-212.84-212.88-212.84zm0 160c29.18 0 52.88 23.66 52.88 52.84s-23.7 52.88-52.88 52.88c-29.17 0-52.84-23.7-52.84-52.88s23.67-52.84 52.84-52.84z" style="color:#000000" fill="#666"/>
+    </clipPath>
+    <clipPath id="clipPath4236" clipPathUnits="userSpaceOnUse">
+      <path id="path4238" opacity=".79008" d="m372.84 260.94c-117.49 0-212.84 95.34-212.84 212.84s95.35 212.88 212.84 212.88c117.5 0 212.88-95.38 212.88-212.88s-95.38-212.84-212.88-212.84zm0 160c29.18 0 52.88 23.66 52.88 52.84s-23.7 52.88-52.88 52.88c-29.17 0-52.84-23.7-52.84-52.88s23.67-52.84 52.84-52.84z" style="color:#000000" fill="#666"/>
+    </clipPath>
+    <clipPath id="clipPath4232" clipPathUnits="userSpaceOnUse">
+      <path id="path4234" opacity=".79008" d="m372.84 260.94c-117.49 0-212.84 95.34-212.84 212.84s95.35 212.88 212.84 212.88c117.5 0 212.88-95.38 212.88-212.88s-95.38-212.84-212.88-212.84zm0 160c29.18 0 52.88 23.66 52.88 52.84s-23.7 52.88-52.88 52.88c-29.17 0-52.84-23.7-52.84-52.88s23.67-52.84 52.84-52.84z" style="color:#000000" fill="#666"/>
+    </clipPath>
+    <linearGradient id="linearGradient5241">
+      <stop id="stop5243" stop-color="#7c7c7c" offset="0"/>
+      <stop id="stop5245" stop-color="#c6c6c6" offset="1"/>
+    </linearGradient>
+    <linearGradient id="linearGradient3280" y2="521.38" xlink:href="#linearGradient5241" spreadMethod="reflect" gradientUnits="userSpaceOnUse" x2="-3.5969" gradientTransform="translate(235.87 -28.363)" y1="514.97" x1="-73.263"/>
+    <linearGradient id="linearGradient3282" y2="521.38" xlink:href="#linearGradient5241" spreadMethod="reflect" gradientUnits="userSpaceOnUse" x2="-3.5969" gradientTransform="translate(241.36 -29.278)" y1="514.97" x1="-73.263"/>
+    <linearGradient id="linearGradient3284" y2="368.66" spreadMethod="reflect" gradientUnits="userSpaceOnUse" x2="213.74" y1="473.8" x1="390.2">
+      <stop id="stop7187" stop-color="#6f6f6f" offset="0"/>
+      <stop id="stop7189" stop-color="#f5f5f5" offset="1"/>
+    </linearGradient>
+  </defs>
+  <g id="layer1" transform="translate(-89.645 -116.55)">
+    <g id="g2267" transform="matrix(.74601 0 0 .74601 -31.657 -84.297)">
+      <path id="path4252" stroke-linejoin="round" style="color:#000000" d="m379.05 273.75c-117.5 0-212.85 95.35-212.85 212.84 0 117.5 95.35 212.88 212.85 212.88 117.49 0 212.87-95.38 212.87-212.88 0-117.49-95.38-212.84-212.87-212.84zm0 160c29.17 0 52.87 23.67 52.87 52.84 0 29.18-23.7 52.88-52.87 52.88-29.18 0-52.85-23.7-52.85-52.88 0-29.17 23.67-52.84 52.85-52.84z" stroke="url(#linearGradient3280)" stroke-width="7.2" fill="none"/>
+      <path id="path4254" stroke-linejoin="round" style="color:#000000" d="m384.54 272.83c-117.5 0-212.85 95.35-212.85 212.85 0 117.49 95.35 212.87 212.85 212.87 117.49 0 212.87-95.38 212.87-212.87 0-117.5-95.38-212.85-212.87-212.85zm0 160c29.17 0 52.87 23.67 52.87 52.85 0 29.17-23.7 52.87-52.87 52.87-29.18 0-52.85-23.7-52.85-52.87 0-29.18 23.67-52.85 52.85-52.85z" stroke="url(#linearGradient3282)" stroke-width="7.2" fill="none"/>
+      <path id="path2160" style="color:#000000" d="m372.84 260.94c-117.49 0-212.84 95.34-212.84 212.84s95.35 212.88 212.84 212.88c117.5 0 212.88-95.38 212.88-212.88s-95.38-212.84-212.88-212.84zm0 160c29.18 0 52.88 23.66 52.88 52.84s-23.7 52.88-52.88 52.88c-29.17 0-52.84-23.7-52.84-52.88s23.67-52.84 52.84-52.84z" clip-path="url(#clipPath4248)" transform="translate(8.9468 11.896)" fill="url(#linearGradient3284)"/>
+      <path id="rect3138" opacity=".27099" style="color:#000000" d="m328.93 254.86l41.51 216.98 87.63 202.8-45.85 14.1-41.52-216.98-87.63-202.8 45.86-14.1z" clip-path="url(#clipPath4244)" transform="matrix(.99712 .075845 -.075845 .99712 45.949 -14.845)" filter="url(#filter11193)" fill="#f00"/>
+      <path id="path4112" opacity=".27099" style="color:#000000" d="m293.55 264.71l76.9 207.15 120.65 185.11-43.51 21.91-76.9-207.14-120.65-185.12 43.51-21.91z" clip-path="url(#clipPath4240)" transform="matrix(.99994 -.011097 .011097 .99994 3.7343 16.037)" filter="url(#filter11189)" fill="#ff0"/>
+      <path id="path4114" opacity=".27099" style="color:#000000" d="m260.93 279.9l109.53 191.98 149.02 163.06-38.27 28.02-110.53-191.24-150.01-162.32 40.26-29.5z" clip-path="url(#clipPath4236)" transform="matrix(.99501 -.099730 .099730 .99501 -36.224 51.154)" filter="url(#filter11185)" fill="#0f0"/>
+      <path id="path4116" opacity=".27099" style="color:#000000" d="m233.04 298.24l137.44 173.66 176.43 133.56-37.83 38.89-138.41-172.65-177.4-132.56 39.77-40.9z" clip-path="url(#clipPath4232)" transform="matrix(.97849 -.20631 .20631 .97849 -80.326 98.389)" filter="url(#filter11181)" fill="#00f"/>
+      <path id="path2165" opacity=".38931" stroke-linejoin="round" style="color:#000000" d="m471.43 480.93a74.286 74.286 0 1 1 -148.57 0 74.286 74.286 0 1 1 148.57 0z" transform="matrix(.88601 0 0 .88601 29.475 60.037)" stroke="#d2d2d2" stroke-width="20" fill="none"/>
+    </g>
+  </g>
+  <metadata>
+    <rdf:RDF>
+      <cc:Work>
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+        <cc:license rdf:resource="http://creativecommons.org/licenses/publicdomain/"/>
+        <dc:publisher>
+          <cc:Agent rdf:about="http://openclipart.org/">
+            <dc:title>Openclipart</dc:title>
+          </cc:Agent>
+        </dc:publisher>
+        <dc:title>CD / DVD</dc:title>
+        <dc:date>2008-03-24T21:09:50</dc:date>
+        <dc:description>clip art, clipart, disc, disc, dvd, dvd, icon, icon, image, jpg, media, music, music, player, player, public domain, recording, recording, svg, </dc:description>
+        <dc:source>http://openclipart.org/detail/15989/cd-/-dvd-by-chrisdesign</dc:source>
+        <dc:creator>
+          <cc:Agent>
+            <dc:title>Chrisdesign</dc:title>
+          </cc:Agent>
+        </dc:creator>
+        <dc:subject>
+          <rdf:Bag>
+            <rdf:li>clip art</rdf:li>
+            <rdf:li>clipart</rdf:li>
+            <rdf:li>disc</rdf:li>
+            <rdf:li>dvd</rdf:li>
+            <rdf:li>icon</rdf:li>
+            <rdf:li>image</rdf:li>
+            <rdf:li>jpg</rdf:li>
+            <rdf:li>media</rdf:li>
+            <rdf:li>music</rdf:li>
+            <rdf:li>player</rdf:li>
+            <rdf:li>public domain</rdf:li>
+            <rdf:li>recording</rdf:li>
+            <rdf:li>svg</rdf:li>
+          </rdf:Bag>
+        </dc:subject>
+      </cc:Work>
+      <cc:License rdf:about="http://creativecommons.org/licenses/publicdomain/">
+        <cc:permits rdf:resource="http://creativecommons.org/ns#Reproduction"/>
+        <cc:permits rdf:resource="http://creativecommons.org/ns#Distribution"/>
+        <cc:permits rdf:resource="http://creativecommons.org/ns#DerivativeWorks"/>
+      </cc:License>
+    </rdf:RDF>
+  </metadata>
 </svg>
