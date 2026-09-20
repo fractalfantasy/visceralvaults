@@ -194,6 +194,23 @@ async function init() {
   // moves) rather than just fading the target height in place.
   const RELIEF_RIPPLE_SCALE = 30;
 
+  // Live-tunable liquid-sim parameters (see cloth.js for what each one
+  // actually does to the wave equation). Kept separate from the Cloth
+  // instance itself since buildCloth() replaces that instance on resize/
+  // mesh-resolution/logo-image changes — these survive a rebuild and get
+  // reapplied to whatever the new instance is.
+  const clothParams = {
+    waveSpeed: 200,
+    restoring: 56,
+    damping: 3,
+    maxVelocity: 500,
+    depthGain: 10,
+    // The reference's own default (9.45) was tuned for a much larger world
+    // scale; on our unit-height plane it blew Z-displacement out past the
+    // plane's own size, so this starts much lower.
+    displacementScale: 0.8,
+  };
+
   let PLANE_HEIGHT;
   let cloth;
   let logoGray;
@@ -248,10 +265,7 @@ async function init() {
       segmentsX: segX,
       segmentsY: segY,
     });
-    // The reference's displacementScale (9.45) was tuned for a much larger
-    // world scale; on our unit-height plane it blew Z-displacement out past
-    // the plane's own size. Scale it down to a subtle emboss instead.
-    newCloth.displacementScale = 0.8;
+    Object.assign(newCloth, clothParams);
 
     // Bake the logo into a band near the top of the cloth's resting shape
     // (centered at LOGO_CENTER_FRACTION down) as a static depth target;
@@ -442,6 +456,32 @@ async function init() {
   // instead of moving smoothly.
   const reliefCtrl = displacementFolder.add(guiParams, "reliefHeight", 0, 0.6, 0.0001).name("depth map amount");
 
+  // ---------- liquid sim ----------
+  const liquidFolder = gui.addFolder("Liquid Sim");
+  guiParams.waveSpeed = clothParams.waveSpeed;
+  guiParams.restoring = clothParams.restoring;
+  guiParams.damping = clothParams.damping;
+  guiParams.depthGain = clothParams.depthGain;
+  guiParams.displacementScale = clothParams.displacementScale;
+  guiParams.maxVelocity = clothParams.maxVelocity;
+
+  // Applies to clothParams (so a rebuild from buildCloth() keeps the value)
+  // and directly to the live cloth instance (so it takes effect immediately
+  // without needing one).
+  function addClothParamCtrl(key, min, max, step, label) {
+    return liquidFolder.add(guiParams, key, min, max, step).name(label).onChange((v) => {
+      clothParams[key] = v;
+      cloth[key] = v;
+    });
+  }
+
+  const waveSpeedCtrl = addClothParamCtrl("waveSpeed", 0, 800, 1, "wave speed");
+  const restoringCtrl = addClothParamCtrl("restoring", 0, 200, 1, "stiffness");
+  const dampingCtrl = addClothParamCtrl("damping", 0, 20, 0.1, "damping");
+  const depthGainCtrl = addClothParamCtrl("depthGain", 0, 50, 0.5, "logo growth rate");
+  const displacementScaleCtrl = addClothParamCtrl("displacementScale", 0, 3, 0.01, "height scale");
+  const maxVelocityCtrl = addClothParamCtrl("maxVelocity", 50, 2000, 10, "max velocity (safety clamp)");
+
   const pointerFolder = gui.addFolder("Pointer");
   const pointerRadiusCtrl = pointerFolder.add(pointerParams, "radius", 0.01, 0.3, 0.005).name("mouse size");
   const pointerStrengthCtrl = pointerFolder.add(pointerParams, "strength", 0, 0.2, 0.005).name("liquid amount");
@@ -525,6 +565,12 @@ async function init() {
       bloomRadius: guiParams.bloomRadius,
       bloomThreshold: guiParams.bloomThreshold,
       bloomSoftness: guiParams.bloomSoftness,
+      waveSpeed: guiParams.waveSpeed,
+      restoring: guiParams.restoring,
+      damping: guiParams.damping,
+      depthGain: guiParams.depthGain,
+      displacementScale: guiParams.displacementScale,
+      maxVelocity: guiParams.maxVelocity,
     };
   }
 
@@ -536,6 +582,8 @@ async function init() {
     pointerRadius: pointerRadiusCtrl, pointerStrength: pointerStrengthCtrl,
     meshResolution: meshResolutionCtrl, bloomStrength: bloomStrengthCtrl,
     bloomRadius: bloomRadiusCtrl, bloomThreshold: bloomThresholdCtrl, bloomSoftness: bloomSoftnessCtrl,
+    waveSpeed: waveSpeedCtrl, restoring: restoringCtrl, damping: dampingCtrl,
+    depthGain: depthGainCtrl, displacementScale: displacementScaleCtrl, maxVelocity: maxVelocityCtrl,
   };
 
   function applyPreset(snapshot) {
