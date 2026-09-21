@@ -55,6 +55,14 @@ export class VerletCloth {
     this.damping = 0.98; // velocity retained per step, implicit in Verlet's (pos - prev)
     this.iterations = 3; // constraint-relaxation passes per frame
 
+    // How hard contact with the floor (see simulate()'s floorAt) corrects a
+    // penetrating vertex, per frame: 1 snaps it fully to the floor and kills
+    // its z-velocity outright (rigid, but transmits every ripple of a fast-
+    // moving floor straight into the cloth as jitter); lower values only
+    // close part of the gap each frame, letting the fabric settle instead
+    // of snapping to a rippling liquid surface.
+    this.collisionStrength = 0.25;
+
     // Static logo relief, embossed on top of the physics rather than fed
     // into it — depthOffset converges toward depthTarget and gets added to
     // each vertex's z only when writing to the geometry, so it doesn't
@@ -158,13 +166,15 @@ export class VerletCloth {
     }
 
     if (floorAt) {
+      const strength = this.collisionStrength;
       for (let i = 0; i < count; i++) {
         if (this.pinned[i]) continue;
         const ix = i * 3;
+        const iz = ix + 2;
         const floorZ = floorAt(pos[ix], pos[ix + 1]);
-        if (pos[ix + 2] < floorZ) {
-          pos[ix + 2] = floorZ;
-          prev[ix + 2] = floorZ;
+        if (pos[iz] < floorZ) {
+          pos[iz] += (floorZ - pos[iz]) * strength;
+          prev[iz] += (floorZ - prev[iz]) * strength;
         }
       }
     }

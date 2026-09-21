@@ -2,7 +2,7 @@ import * as THREE from "three/webgpu";
 import { bloom } from "three/addons/tsl/display/BloomNode.js";
 import { GUI } from "dat.gui";
 import { Cloth } from "./cloth.js?v=1";
-import { VerletCloth } from "./verlet-cloth.js?v=4";
+import { VerletCloth } from "./verlet-cloth.js?v=5";
 
 const canvas = document.getElementById("liquid-canvas");
 const fallback = document.querySelector(".hero-fallback");
@@ -227,6 +227,10 @@ async function init() {
     // lookup against the liquid grid every frame (cheap, but only worth
     // paying for when both meshes are actually shown together).
     collisions: false,
+    // How hard a frame's floor contact corrects a penetrating vertex — see
+    // VerletCloth's collisionStrength for why this is a partial correction
+    // rather than a hard snap.
+    collisionStrength: 0.25,
   };
 
   // Master on/off for the liquid mesh, mirroring clothSimParams.enabled —
@@ -368,6 +372,7 @@ async function init() {
     verletCloth.gravity = clothSimParams.gravity;
     verletCloth.wind = clothSimParams.wind;
     verletCloth.damping = clothSimParams.damping;
+    verletCloth.collisionStrength = clothSimParams.collisionStrength;
 
     // Bakes the cloth's own (independently chosen) displacement image onto
     // its own grid, same band-placement logic as the liquid mesh above.
@@ -436,21 +441,17 @@ async function init() {
   // hard snap) instead of always snapping straight to it.
   const clothPointerParams = { radius: 0.155, strength: 0.5 };
 
-  // dat.gui's auto-scroll ("taller than window") math assumes the panel is
-  // anchored from the top of the screen and clamps its open height to the
-  // remaining space below it; anchored from the bottom (below) instead,
-  // that space reads as ~0 and the panel opens with no visible content.
-  // We don't need its scrolling — folders default closed anyway — so it's
-  // simplest to turn the feature off outright.
+  // dat.gui's own auto-scroll ("taller than window") math assumes the panel
+  // is anchored from the top of the screen and clamps its open height to
+  // the remaining space below it; anchored from the bottom (below) instead,
+  // that space reads as ~0 and the panel opens with no visible content. We
+  // leave it off and drive the panel's scrolling ourselves in CSS instead
+  // (see .dg.main in style.css).
   const gui = new GUI({ scrollable: false });
 
   // Added directly to the root gui (not a folder) so it renders as its own
-  // row above every folder, including Presets. Off by default — the fps
-  // value only gets computed/updated in the render loop while the checkbox
-  // is on, so there's no cost when it's not in use. `.listen()` is dat.gui's
+  // row above every folder, including Presets. `.listen()` is dat.gui's
   // built-in "poll this property and keep the display live" mechanism.
-  guiParams.showFps = false;
-  gui.add(guiParams, "showFps").name("FPS counter");
   guiParams.fps = 0;
   gui.add(guiParams, "fps").name("fps").listen();
 
@@ -694,6 +695,11 @@ async function init() {
   const clothCollisionsCtrl = clothSimFolder.add(guiParams, "clothCollisions").name("activate collisions").onChange((v) => {
     clothSimParams.collisions = v;
   });
+  guiParams.clothCollisionStrength = clothSimParams.collisionStrength;
+  const clothCollisionStrengthCtrl = clothSimFolder.add(guiParams, "clothCollisionStrength", 0.02, 1, 0.01).name("collision softness").onChange((v) => {
+    clothSimParams.collisionStrength = v;
+    verletCloth.collisionStrength = v;
+  });
   guiParams.clothGravity = clothSimParams.gravity;
   const clothGravityCtrl = clothSimFolder.add(guiParams, "clothGravity", -2, 0, 0.01).name("gravity").onChange((v) => {
     clothSimParams.gravity = v;
@@ -816,6 +822,7 @@ async function init() {
       maxVelocity: guiParams.maxVelocity,
       clothEnabled: guiParams.clothEnabled,
       clothCollisions: guiParams.clothCollisions,
+      clothCollisionStrength: guiParams.clothCollisionStrength,
       clothGravity: guiParams.clothGravity,
       clothWind: guiParams.clothWind,
       clothDamping: guiParams.clothDamping,
@@ -847,7 +854,8 @@ async function init() {
     bloomRadius: bloomRadiusCtrl, bloomThreshold: bloomThresholdCtrl, bloomSoftness: bloomSoftnessCtrl,
     waveSpeed: waveSpeedCtrl, restoring: restoringCtrl, damping: dampingCtrl,
     depthGain: depthGainCtrl, displacementScale: displacementScaleCtrl, maxVelocity: maxVelocityCtrl,
-    clothEnabled: clothEnabledCtrl, clothCollisions: clothCollisionsCtrl, clothGravity: clothGravityCtrl,
+    clothEnabled: clothEnabledCtrl, clothCollisions: clothCollisionsCtrl,
+    clothCollisionStrength: clothCollisionStrengthCtrl, clothGravity: clothGravityCtrl,
     clothWind: clothWindCtrl, clothDamping: clothDampingCtrl,
     clothPointerRadius: clothPointerRadiusCtrl, clothPointerStrength: clothPointerStrengthCtrl,
     clothRoughness: clothRoughnessCtrl, clothMetalness: clothMetalnessCtrl, clothColor: clothColorCtrl,
@@ -1156,12 +1164,10 @@ async function init() {
       verletCloth.simulate(dt, now / 1000, clothSimParams.collisions ? (x, y) => cloth.heightAt(x, y) : undefined);
     }
 
-    if (guiParams.showFps && dt > 0) {
+    if (dt > 0) {
       const instantFps = 1 / dt;
       fpsSmoothed = fpsSmoothed ? fpsSmoothed * 0.9 + instantFps * 0.1 : instantFps;
       guiParams.fps = Math.round(fpsSmoothed);
-    } else if (guiParams.fps !== 0) {
-      guiParams.fps = 0;
     }
 
     await postProcessing.renderAsync();
