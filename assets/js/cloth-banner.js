@@ -2,7 +2,7 @@ import * as THREE from "three/webgpu";
 import { bloom } from "three/addons/tsl/display/BloomNode.js";
 import { GUI } from "dat.gui";
 import { Cloth } from "./cloth.js?v=1";
-import { VerletCloth } from "./verlet-cloth.js?v=6";
+import { VerletCloth } from "./verlet-cloth.js?v=7";
 
 const canvas = document.getElementById("liquid-canvas");
 const fallback = document.querySelector(".hero-fallback");
@@ -227,11 +227,9 @@ async function init() {
     // lookup against the liquid grid every frame (cheap, but only worth
     // paying for when both meshes are actually shown together).
     collisions: false,
-    // How much velocity a floor contact absorbs per frame — see
-    // VerletCloth's collisionStrength. Position itself is always hard-
-    // clamped to the floor regardless (no tunneling); this only controls
-    // how rigid vs. cushioned that contact feels.
-    collisionStrength: 0.25,
+    // Max speed (world-units/second) the floor can push a penetrating
+    // vertex out — see VerletCloth's collisionStrength.
+    collisionStrength: 2,
   };
 
   // Master on/off for the liquid mesh, mirroring clothSimParams.enabled —
@@ -697,7 +695,7 @@ async function init() {
     clothSimParams.collisions = v;
   });
   guiParams.clothCollisionStrength = clothSimParams.collisionStrength;
-  const clothCollisionStrengthCtrl = clothSimFolder.add(guiParams, "clothCollisionStrength", 0.02, 1, 0.01).name("collision softness").onChange((v) => {
+  const clothCollisionStrengthCtrl = clothSimFolder.add(guiParams, "clothCollisionStrength", 0.1, 10, 0.05).name("collision softness").onChange((v) => {
     clothSimParams.collisionStrength = v;
     verletCloth.collisionStrength = v;
   });

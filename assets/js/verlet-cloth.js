@@ -55,14 +55,12 @@ export class VerletCloth {
     this.damping = 0.98; // velocity retained per step, implicit in Verlet's (pos - prev)
     this.iterations = 3; // constraint-relaxation passes per frame
 
-    // How much of a contacting vertex's velocity gets absorbed by the floor
-    // (see simulate()'s floorAt), per frame — position itself is always
-    // hard-clamped to the floor regardless, so the fabric never actually
-    // passes through it. 1 kills the velocity outright on contact (rigid,
-    // transmits every ripple of a fast-moving floor straight into the cloth
-    // as jitter); lower values bleed it off over a few frames instead, so
-    // the fabric settles rather than snapping to a rippling liquid surface.
-    this.collisionStrength = 0.25;
+    // Max speed (world-units/second) a penetrating vertex gets pushed out
+    // of the floor — see simulate()'s floorAt. Higher tracks the floor more
+    // tightly (less momentary overlap, but feels more rigid); lower feels
+    // softer at the cost of letting fast floor motion briefly outrun the
+    // correction.
+    this.collisionStrength = 2;
 
     // Static logo relief, embossed on top of the physics rather than fed
     // into it — depthOffset converges toward depthTarget and gets added to
@@ -105,13 +103,18 @@ export class VerletCloth {
 
   // `floorAt(x, y)`, if given, returns a z the cloth can't sink below at
   // that local (x, y) — applied after constraint relaxation, once per
-  // vertex. Position is always hard-clamped to the floor (so the fabric
-  // can never actually pass through it, even against a fast-moving
-  // surface), while prev — which encodes the vertex's effective velocity
-  // via Verlet's (pos - prev) — is only partially pulled toward the floor
-  // (collisionStrength). That's what keeps contact from feeling like a
-  // rigid, jarring stop: velocity bleeds off over a few frames instead of
-  // being killed outright the instant it touches down.
+  // vertex. A vertex resting on a moving floor gets its position dictated
+  // by that floor every single frame it's in contact — an instant snap (or
+  // even snapping pos while only softening prev, which doesn't touch what
+  // actually gets rendered) makes the cloth trace every fast ripple of the
+  // liquid 1:1, however "soft" collisionStrength claims to be. So instead
+  // the correction is rate-limited: a penetrating vertex is pushed out by
+  // at most collisionStrength world-units/second, added to pos without
+  // touching prev — exactly like the gravity/wind forces above, so the
+  // push naturally becomes (and later damps out as) real Verlet velocity
+  // instead of an ad hoc teleport. A floor that rises faster than that cap
+  // can briefly outrun the correction (a frame or two of shallow overlap)
+  // in exchange for never feeling like a rigid, jarring stop.
   simulate(dt, time, floorAt) {
     dt = Math.min(dt, 1 / 30);
     const { pos, prev, count } = this;
@@ -171,15 +174,15 @@ export class VerletCloth {
     }
 
     if (floorAt) {
-      const strength = this.collisionStrength;
+      const maxPush = this.collisionStrength * dt;
       for (let i = 0; i < count; i++) {
         if (this.pinned[i]) continue;
         const ix = i * 3;
         const iz = ix + 2;
         const floorZ = floorAt(pos[ix], pos[ix + 1]);
-        if (pos[iz] < floorZ) {
-          pos[iz] = floorZ;
-          prev[iz] += (floorZ - prev[iz]) * strength;
+        const penetration = floorZ - pos[iz];
+        if (penetration > 0) {
+          pos[iz] += Math.min(penetration, maxPush);
         }
       }
     }
