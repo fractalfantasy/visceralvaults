@@ -55,12 +55,13 @@ export class VerletCloth {
     this.damping = 0.98; // velocity retained per step, implicit in Verlet's (pos - prev)
     this.iterations = 3; // constraint-relaxation passes per frame
 
-    // How hard contact with the floor (see simulate()'s floorAt) corrects a
-    // penetrating vertex, per frame: 1 snaps it fully to the floor and kills
-    // its z-velocity outright (rigid, but transmits every ripple of a fast-
-    // moving floor straight into the cloth as jitter); lower values only
-    // close part of the gap each frame, letting the fabric settle instead
-    // of snapping to a rippling liquid surface.
+    // How much of a contacting vertex's velocity gets absorbed by the floor
+    // (see simulate()'s floorAt), per frame — position itself is always
+    // hard-clamped to the floor regardless, so the fabric never actually
+    // passes through it. 1 kills the velocity outright on contact (rigid,
+    // transmits every ripple of a fast-moving floor straight into the cloth
+    // as jitter); lower values bleed it off over a few frames instead, so
+    // the fabric settles rather than snapping to a rippling liquid surface.
     this.collisionStrength = 0.25;
 
     // Static logo relief, embossed on top of the physics rather than fed
@@ -104,9 +105,13 @@ export class VerletCloth {
 
   // `floorAt(x, y)`, if given, returns a z the cloth can't sink below at
   // that local (x, y) — applied after constraint relaxation, once per
-  // vertex, and clamps both pos and prev together so contact kills the
-  // vertex's z-velocity instead of leaving it to spring back through the
-  // floor next frame.
+  // vertex. Position is always hard-clamped to the floor (so the fabric
+  // can never actually pass through it, even against a fast-moving
+  // surface), while prev — which encodes the vertex's effective velocity
+  // via Verlet's (pos - prev) — is only partially pulled toward the floor
+  // (collisionStrength). That's what keeps contact from feeling like a
+  // rigid, jarring stop: velocity bleeds off over a few frames instead of
+  // being killed outright the instant it touches down.
   simulate(dt, time, floorAt) {
     dt = Math.min(dt, 1 / 30);
     const { pos, prev, count } = this;
@@ -173,7 +178,7 @@ export class VerletCloth {
         const iz = ix + 2;
         const floorZ = floorAt(pos[ix], pos[ix + 1]);
         if (pos[iz] < floorZ) {
-          pos[iz] += (floorZ - pos[iz]) * strength;
+          pos[iz] = floorZ;
           prev[iz] += (floorZ - prev[iz]) * strength;
         }
       }

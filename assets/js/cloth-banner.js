@@ -2,7 +2,7 @@ import * as THREE from "three/webgpu";
 import { bloom } from "three/addons/tsl/display/BloomNode.js";
 import { GUI } from "dat.gui";
 import { Cloth } from "./cloth.js?v=1";
-import { VerletCloth } from "./verlet-cloth.js?v=5";
+import { VerletCloth } from "./verlet-cloth.js?v=6";
 
 const canvas = document.getElementById("liquid-canvas");
 const fallback = document.querySelector(".hero-fallback");
@@ -227,9 +227,10 @@ async function init() {
     // lookup against the liquid grid every frame (cheap, but only worth
     // paying for when both meshes are actually shown together).
     collisions: false,
-    // How hard a frame's floor contact corrects a penetrating vertex — see
-    // VerletCloth's collisionStrength for why this is a partial correction
-    // rather than a hard snap.
+    // How much velocity a floor contact absorbs per frame — see
+    // VerletCloth's collisionStrength. Position itself is always hard-
+    // clamped to the floor regardless (no tunneling); this only controls
+    // how rigid vs. cushioned that contact feels.
     collisionStrength: 0.25,
   };
 
