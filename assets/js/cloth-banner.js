@@ -1,5 +1,6 @@
 import * as THREE from "three/webgpu";
 import { bloom } from "three/addons/tsl/display/BloomNode.js";
+import { rgbShift } from "three/addons/tsl/display/RGBShiftNode.js";
 import { GUI } from "dat.gui";
 import { Cloth } from "./cloth.js?v=1";
 import { VerletCloth } from "./verlet-cloth.js?v=7";
@@ -96,7 +97,6 @@ const FALLBACK_PRESET = {
   color: "#ff0000",
   refraction: true,
   ior: 2.333,
-  dispersion: 1.84,
   thickness: 0,
   envMap: "https://fractalfantasy.net/waterball/build/pano/pano36.jpg",
   lightX: -0.85,
@@ -260,7 +260,6 @@ async function init() {
     side: THREE.DoubleSide,
     transmission: startupPreset.refraction ? 1 : 0,
     ior: startupPreset.ior,
-    dispersion: startupPreset.dispersion,
     thickness: startupPreset.thickness,
   });
 
@@ -273,7 +272,6 @@ async function init() {
     side: THREE.DoubleSide,
     transmission: startupPreset.refraction ? 1 : 0,
     ior: startupPreset.ior,
-    dispersion: startupPreset.dispersion,
     thickness: startupPreset.thickness,
   });
 
@@ -471,7 +469,6 @@ async function init() {
 
   guiParams.refraction = material.transmission > 0;
   guiParams.ior = material.ior;
-  guiParams.dispersion = material.dispersion;
   // WebGPU/TSL compiles a material's node graph once and caches it; toggling
   // transmission on switches which lighting-model branch that graph needs
   // (plain PBR vs. IBL volume refraction), so it has to be told to rebuild —
@@ -482,11 +479,6 @@ async function init() {
   });
   const iorCtrl = materialFolder.add(guiParams, "ior", 1, 2.333, 0.001).name("index of refraction").onChange((v) => {
     material.ior = v;
-    material.needsUpdate = true;
-  });
-  // Dispersion only has a visible effect once refraction/transmission is on.
-  const dispersionCtrl = materialFolder.add(guiParams, "dispersion", 0, 5, 0.01).name("chromatic aberration").onChange((v) => {
-    material.dispersion = v;
     material.needsUpdate = true;
   });
   guiParams.thickness = material.thickness;
@@ -626,11 +618,6 @@ async function init() {
     clothMaterial.ior = v;
     clothMaterial.needsUpdate = true;
   });
-  guiParams.clothDispersion = clothMaterial.dispersion;
-  const clothDispersionCtrl = clothMaterialFolder.add(guiParams, "clothDispersion", 0, 5, 0.01).name("chromatic aberration").onChange((v) => {
-    clothMaterial.dispersion = v;
-    clothMaterial.needsUpdate = true;
-  });
   guiParams.clothThickness = clothMaterial.thickness;
   const clothThicknessCtrl = clothMaterialFolder.add(guiParams, "clothThickness", 0, 1, 0.005).name("refraction depth").onChange((v) => {
     clothMaterial.thickness = v;
@@ -757,7 +744,21 @@ async function init() {
   const BLOOM_THRESHOLD = 0.85;
   const bloomPass = bloom(sceneColor, BLOOM_STRENGTH, BLOOM_RADIUS, BLOOM_THRESHOLD);
   const bloomOutputNode = sceneColor.add(bloomPass);
-  postProcessing.outputNode = BLOOM_STRENGTH > 0 ? bloomOutputNode : sceneColor;
+
+  // A screen-space RGB split, applied after bloom — a from-scratch stand-in
+  // for MeshPhysicalMaterial's built-in `dispersion`, which we stopped using
+  // entirely (see git history "secondary chromatic aberration model"): with
+  // a cloth mesh transmitting/refracting a liquid mesh behind it, three.js's
+  // own per-channel dispersion sampling combined with its Fresnel-based
+  // transmission suppression revealed an inverted-looking ghost of the
+  // liquid's logo through the cloth that didn't respond to any of our other
+  // controls. This operates on the final 2D composited frame instead of
+  // per-object transmission rays, so it can't interact with any of that.
+  const CHROMATIC_ABERRATION_AMOUNT = 0;
+  const CHROMATIC_ABERRATION_ANGLE = 0;
+  const noBloomCA = rgbShift(sceneColor, CHROMATIC_ABERRATION_AMOUNT, CHROMATIC_ABERRATION_ANGLE);
+  const bloomCA = rgbShift(bloomOutputNode, CHROMATIC_ABERRATION_AMOUNT, CHROMATIC_ABERRATION_ANGLE);
+  postProcessing.outputNode = BLOOM_STRENGTH > 0 ? bloomCA : noBloomCA;
 
   // The bloom node still runs its downsample/blur passes every frame purely
   // by being part of the output graph, regardless of how low its strength
@@ -766,9 +767,9 @@ async function init() {
   function applyBloomStrength(v) {
     bloomPass.strength.value = v;
     const shouldBloom = v > 0;
-    const isBloomOn = postProcessing.outputNode === bloomOutputNode;
+    const isBloomOn = postProcessing.outputNode === bloomCA;
     if (shouldBloom !== isBloomOn) {
-      postProcessing.outputNode = shouldBloom ? bloomOutputNode : sceneColor;
+      postProcessing.outputNode = shouldBloom ? bloomCA : noBloomCA;
       postProcessing.needsUpdate = true;
     }
   }
@@ -784,6 +785,18 @@ async function init() {
   const bloomThresholdCtrl = bloomFolder.add(guiParams, "bloomThreshold", 0, 1, 0.01).name("threshold");
   const bloomSoftnessCtrl = bloomFolder.add(guiParams, "bloomSoftness", 0, 0.5, 0.005).name("gradient softness").onChange((v) => { bloomPass.smoothWidth.value = v; });
 
+  guiParams.chromaticAberration = CHROMATIC_ABERRATION_AMOUNT;
+  guiParams.chromaticAberrationAngle = CHROMATIC_ABERRATION_ANGLE;
+  const chromaticAberrationFolder = gui.addFolder("Chromatic Aberration");
+  const chromaticAberrationCtrl = chromaticAberrationFolder.add(guiParams, "chromaticAberration", 0, 0.02, 0.0005).name("amount").onChange((v) => {
+    noBloomCA.amount.value = v;
+    bloomCA.amount.value = v;
+  });
+  const chromaticAberrationAngleCtrl = chromaticAberrationFolder.add(guiParams, "chromaticAberrationAngle", 0, Math.PI * 2, 0.01).name("angle").onChange((v) => {
+    noBloomCA.angle.value = v;
+    bloomCA.angle.value = v;
+  });
+
   // ---------- presets ----------
   // A snapshot is just the plain values every relevant controller already
   // reads/writes; applying one is a series of controller.setValue() calls,
@@ -797,7 +810,6 @@ async function init() {
       color: guiParams.color,
       refraction: guiParams.refraction,
       ior: guiParams.ior,
-      dispersion: guiParams.dispersion,
       thickness: guiParams.thickness,
       envMap: guiParams.envMap,
       lightX: guiParams.lightX,
@@ -813,6 +825,8 @@ async function init() {
       bloomRadius: guiParams.bloomRadius,
       bloomThreshold: guiParams.bloomThreshold,
       bloomSoftness: guiParams.bloomSoftness,
+      chromaticAberration: guiParams.chromaticAberration,
+      chromaticAberrationAngle: guiParams.chromaticAberrationAngle,
       waveSpeed: guiParams.waveSpeed,
       restoring: guiParams.restoring,
       damping: guiParams.damping,
@@ -832,7 +846,6 @@ async function init() {
       clothColor: guiParams.clothColor,
       clothRefraction: guiParams.clothRefraction,
       clothIor: guiParams.clothIor,
-      clothDispersion: guiParams.clothDispersion,
       clothThickness: guiParams.clothThickness,
       clothLogoImage: guiParams.clothLogoImage,
       clothReliefHeight: guiParams.clothReliefHeight,
@@ -845,12 +858,13 @@ async function init() {
   const PRESET_CONTROLLERS = {
     liquidEnabled: liquidEnabledCtrl,
     roughness: roughnessCtrl, metalness: metalnessCtrl, color: colorCtrl,
-    refraction: refractionCtrl, ior: iorCtrl, dispersion: dispersionCtrl, thickness: thicknessCtrl,
+    refraction: refractionCtrl, ior: iorCtrl, thickness: thicknessCtrl,
     envMap: envMapCtrl, lightX: lightXCtrl, lightY: lightYCtrl, lightZ: lightZCtrl,
     lightIntensity: lightIntensityCtrl, logoImage: logoImageCtrl, reliefHeight: reliefCtrl,
     pointerRadius: pointerRadiusCtrl, pointerStrength: pointerStrengthCtrl,
     meshResolution: meshResolutionCtrl, bloomStrength: bloomStrengthCtrl,
     bloomRadius: bloomRadiusCtrl, bloomThreshold: bloomThresholdCtrl, bloomSoftness: bloomSoftnessCtrl,
+    chromaticAberration: chromaticAberrationCtrl, chromaticAberrationAngle: chromaticAberrationAngleCtrl,
     waveSpeed: waveSpeedCtrl, restoring: restoringCtrl, damping: dampingCtrl,
     depthGain: depthGainCtrl, displacementScale: displacementScaleCtrl, maxVelocity: maxVelocityCtrl,
     clothEnabled: clothEnabledCtrl, clothCollisions: clothCollisionsCtrl,
@@ -858,7 +872,7 @@ async function init() {
     clothWind: clothWindCtrl, clothDamping: clothDampingCtrl,
     clothPointerRadius: clothPointerRadiusCtrl, clothPointerStrength: clothPointerStrengthCtrl,
     clothRoughness: clothRoughnessCtrl, clothMetalness: clothMetalnessCtrl, clothColor: clothColorCtrl,
-    clothRefraction: clothRefractionCtrl, clothIor: clothIorCtrl, clothDispersion: clothDispersionCtrl,
+    clothRefraction: clothRefractionCtrl, clothIor: clothIorCtrl,
     clothThickness: clothThicknessCtrl, clothEnvMap: clothEnvMapCtrl,
     clothLogoImage: clothLogoImageCtrl, clothReliefHeight: clothReliefCtrl,
     clothMeshResolution: clothMeshResolutionCtrl,
