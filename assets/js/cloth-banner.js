@@ -882,6 +882,10 @@ async function init() {
       liquidEnabled: guiParams.liquidEnabled,
       clothEnvMap: guiParams.clothEnvMap,
       clothMeshResolution: guiParams.clothMeshResolution,
+      // Animators aren't guiParams-backed (see clearAnimators/addAnimator),
+      // so they're captured here directly rather than through the usual
+      // controller-based fields above.
+      animators: animators.map((a) => ({ ...a.state })),
     };
   }
 
@@ -911,6 +915,12 @@ async function init() {
     if (!snapshot) return;
     for (const key in PRESET_CONTROLLERS) {
       if (snapshot[key] !== undefined) PRESET_CONTROLLERS[key].setValue(snapshot[key]);
+    }
+    // Animators don't have a controller to setValue() through — rebuild
+    // them from scratch instead (see clearAnimators/addAnimator).
+    clearAnimators();
+    if (Array.isArray(snapshot.animators)) {
+      for (const saved of snapshot.animators) addAnimator(saved);
     }
   }
 
@@ -1062,19 +1072,31 @@ async function init() {
       if (!isOn) setTargetValue(currentTarget, currentTarget.base);
     });
 
-    sub.add({
+    // Stored on entry (not just closed over) so a full preset reload can
+    // call it directly — see clearAnimators() below.
+    const entry = {
+      state,
       remove: () => {
         if (state.enabled) setTargetValue(currentTarget, currentTarget.base);
         animatorsFolder.removeFolder(sub);
         const i = animators.indexOf(entry);
         if (i >= 0) animators.splice(i, 1);
       },
-    }, "remove").name("− remove");
+    };
+    sub.add({ remove: entry.remove }, "remove").name("− remove");
 
     if (initial.open) sub.open();
 
-    const entry = { state };
     animators.push(entry);
+    return entry;
+  }
+
+  // Animators are dynamically created sub-folders with their own state
+  // objects, not simple guiParams-backed controllers, so they can't go
+  // through PRESET_CONTROLLERS/getPresetSnapshot's usual key -> controller
+  // mapping — applyPreset() clears and rebuilds them separately instead.
+  function clearAnimators() {
+    while (animators.length > 0) animators[0].remove();
   }
 
   animatorsFolder.add({ addAnimator: () => addAnimator({ open: true }) }, "addAnimator").name("+ Add Animator");
