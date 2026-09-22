@@ -96,6 +96,7 @@ const FALLBACK_PRESET = {
   color: "#ff0000",
   refraction: true,
   ior: 2.333,
+  dispersion: 1.84,
   thickness: 0,
   envMap: "https://fractalfantasy.net/waterball/build/pano/pano36.jpg",
   lightX: -0.85,
@@ -275,74 +276,29 @@ async function init() {
   camera.position.set(0, 0, 3);
   camera.lookAt(0, 0, 0);
 
-  // Shared capture of everything rendered so far this frame — used by both
-  // materials' custom chromatic-fringe effect below.
-  const backdropTexture = THREE.viewportMipTexture();
-
-  // A from-scratch, per-material chromatic aberration: offsets the R and B
-  // channels of a backdrop sample along the surface's own view-space
-  // normal (a cheap stand-in for a per-channel bent refraction ray), and
-  // returns only the DIFFERENCE from the unshifted sample — so at amount 0
-  // it's exactly zero, and otherwise it reads as a colored fringe that
-  // shows up strongest at high-contrast edges/curved silhouettes. Added on
-  // top of the material's regular (already-correct, single-ray) refraction
-  // via emissiveNode, rather than replacing it.
-  //
-  // This replicates the visual character of MeshPhysicalMaterial's built-in
-  // per-material `dispersion` (which we stopped using — see git history
-  // "chromatic aberration") without its Fresnel-suppressed transmission
-  // sampling, which was revealing an inverted-looking ghost of whatever
-  // sits behind a transmissive mesh (e.g. the liquid mesh through the
-  // cloth). Because this only ever adds a bounded delta between two
-  // samples of the same backdrop, it can't reveal a whole hidden image the
-  // way that did.
-  function chromaticFringeNode(amountUniform) {
-    const base = THREE.screenUV;
-    // The raw view-space normal's xy is tiny across most of a gently-
-    // rippled/embossed surface (which is where we actually want visible
-    // fringing) but spikes hard at a handful of PlaneGeometry boundary
-    // vertices (a mesh-edge normal-averaging artifact, not a real bump) —
-    // left unclamped, "amount" has to stay so low to keep the corners sane
-    // that the interior fringe never shows at all. Clamping the tilt first,
-    // then amplifying it, fixes both: the corners stay bounded and the
-    // interior becomes visible.
-    const tilt = THREE.clamp(THREE.transformedNormalView.xy, -0.15, 0.15);
-    const offset = tilt.mul(amountUniform).mul(4);
-    const center = backdropTexture.uv(base);
-    const r = backdropTexture.uv(base.add(offset)).r;
-    const b = backdropTexture.uv(base.sub(offset)).b;
-    // Gated by the material's own transmission (0 or 1, from the
-    // "refraction" toggle) — a purely opaque/reflective surface shouldn't
-    // show a "light bending through it" fringe at all.
-    return THREE.vec3(r, center.g, b).sub(center.rgb).mul(THREE.materialTransmission);
-  }
-
-  const dispersionAmount = THREE.uniform(0);
-  const clothDispersionAmount = THREE.uniform(0);
-
-  const material = new THREE.MeshPhysicalNodeMaterial({
+  const material = new THREE.MeshPhysicalMaterial({
     color: startupPreset.color,
     roughness: startupPreset.roughness,
     metalness: startupPreset.metalness,
     side: THREE.DoubleSide,
     transmission: startupPreset.refraction ? 1 : 0,
     ior: startupPreset.ior,
+    dispersion: startupPreset.dispersion,
     thickness: startupPreset.thickness,
   });
-  material.emissiveNode = chromaticFringeNode(dispersionAmount);
 
   // Same set of params as the liquid material (see "Cloth Material" in the
   // GUI below) — starts out matching it too, then diverges independently.
-  const clothMaterial = new THREE.MeshPhysicalNodeMaterial({
+  const clothMaterial = new THREE.MeshPhysicalMaterial({
     color: startupPreset.color,
     roughness: startupPreset.roughness,
     metalness: startupPreset.metalness,
     side: THREE.DoubleSide,
     transmission: startupPreset.refraction ? 1 : 0,
     ior: startupPreset.ior,
+    dispersion: startupPreset.dispersion,
     thickness: startupPreset.thickness,
   });
-  clothMaterial.emissiveNode = chromaticFringeNode(clothDispersionAmount);
 
   function applyReliefHeight(height, { ripple = false } = {}) {
     const delta = height - currentReliefHeight;
@@ -557,11 +513,10 @@ async function init() {
     material.thickness = v;
     material.needsUpdate = true;
   });
-  guiParams.dispersion = dispersionAmount.value;
-  // Just a uniform's live value — no shader-graph change, so no
-  // needsUpdate needed (see chromaticFringeNode where this is created).
-  const dispersionCtrl = materialFolder.add(guiParams, "dispersion", 0, 0.3, 0.005).name("chromatic aberration").onChange((v) => {
-    dispersionAmount.value = v;
+  guiParams.dispersion = material.dispersion;
+  const dispersionCtrl = materialFolder.add(guiParams, "dispersion", 0, 5, 0.01).name("chromatic aberration").onChange((v) => {
+    material.dispersion = v;
+    material.needsUpdate = true;
   });
 
   // Hotlinked rather than vendored — 130 panoramas would bloat the repo,
@@ -698,9 +653,10 @@ async function init() {
     clothMaterial.thickness = v;
     clothMaterial.needsUpdate = true;
   });
-  guiParams.clothDispersion = clothDispersionAmount.value;
-  const clothDispersionCtrl = clothMaterialFolder.add(guiParams, "clothDispersion", 0, 0.3, 0.005).name("chromatic aberration").onChange((v) => {
-    clothDispersionAmount.value = v;
+  guiParams.clothDispersion = clothMaterial.dispersion;
+  const clothDispersionCtrl = clothMaterialFolder.add(guiParams, "clothDispersion", 0, 5, 0.01).name("chromatic aberration").onChange((v) => {
+    clothMaterial.dispersion = v;
+    clothMaterial.needsUpdate = true;
   });
   // Defaults to None (no extra texture load) rather than mirroring the
   // liquid's env map — independent by default, same as every other cloth
