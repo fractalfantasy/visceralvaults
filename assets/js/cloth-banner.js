@@ -114,6 +114,23 @@ const FALLBACK_PRESET = {
 };
 
 const PRESETS_STORAGE_KEY = "vv-presets";
+const LAST_PRESET_KEY = "vv-last-preset";
+
+function loadLastPresetName() {
+  try {
+    return localStorage.getItem(LAST_PRESET_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function saveLastPresetName(name) {
+  try {
+    localStorage.setItem(LAST_PRESET_KEY, name);
+  } catch {
+    // ignore — worst case it just falls back to a random pick next load
+  }
+}
 
 async function loadSharedPresets() {
   try {
@@ -141,13 +158,19 @@ async function init() {
 
   // Shared presets are baked into the repo and the same for every visitor;
   // custom ones are saved locally (per browser, via the Presets folder) and
-  // take priority over a shared preset of the same name. One of the pooled
-  // presets is picked at random below to seed the initial look.
+  // take priority over a shared preset of the same name. Whichever preset
+  // was last loaded or saved (locally, see saveLastPresetName) picks up
+  // right where it left off on the next visit — handy for going back and
+  // forth while tuning one; falls back to a random pick only when there's
+  // no last one recorded yet (a first-ever visit) or it no longer exists.
   const sharedPresets = await loadSharedPresets();
   const customPresets = loadCustomPresets();
   const startupPresetPool = { ...sharedPresets, ...customPresets };
   const startupPresetNames = Object.keys(startupPresetPool);
-  const startupPresetName = startupPresetNames[Math.floor(Math.random() * startupPresetNames.length)];
+  const lastPresetName = loadLastPresetName();
+  const startupPresetName = (lastPresetName && startupPresetPool[lastPresetName])
+    ? lastPresetName
+    : startupPresetNames[Math.floor(Math.random() * startupPresetNames.length)];
   const startupPreset = startupPresetPool[startupPresetName];
 
   const LOGO_IMAGE_BASE = "assets/img/site/";
@@ -934,6 +957,7 @@ async function init() {
   function saveCurrentAsPreset(name) {
     customPresets[name] = getPresetSnapshot();
     localStorage.setItem(PRESETS_STORAGE_KEY, JSON.stringify(customPresets));
+    saveLastPresetName(name);
   }
 
   let presetCtrl = null;
@@ -943,6 +967,7 @@ async function init() {
     guiParams.preset = selected;
     presetCtrl = presetsFolder.add(guiParams, "preset", options).name("load preset").onChange((name) => {
       applyPreset(resolvePreset(name));
+      saveLastPresetName(name);
     });
   }
 
