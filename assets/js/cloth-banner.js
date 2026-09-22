@@ -276,28 +276,35 @@ async function init() {
   camera.position.set(0, 0, 3);
   camera.lookAt(0, 0, 0);
 
+  // Never transmissive/refractive — see git history "kill refraction
+  // params from liquid material": only the cloth ever refracts now.
   const material = new THREE.MeshPhysicalMaterial({
     color: startupPreset.color,
     roughness: startupPreset.roughness,
     metalness: startupPreset.metalness,
     side: THREE.DoubleSide,
-    transmission: startupPreset.refraction ? 1 : 0,
-    ior: startupPreset.ior,
-    dispersion: startupPreset.dispersion,
-    thickness: startupPreset.thickness,
   });
 
-  // Same set of params as the liquid material (see "Cloth Material" in the
-  // GUI below) — starts out matching it too, then diverges independently.
+  // Same non-refraction params as the liquid material (see "Cloth
+  // Material" in the GUI below) — starts out matching it too, then
+  // diverges independently. Refraction/dispersion/iridescence use their
+  // own dedicated cloth* preset fields since the liquid material no
+  // longer has any of its own to fall back on.
   const clothMaterial = new THREE.MeshPhysicalMaterial({
     color: startupPreset.color,
     roughness: startupPreset.roughness,
     metalness: startupPreset.metalness,
     side: THREE.DoubleSide,
-    transmission: startupPreset.refraction ? 1 : 0,
-    ior: startupPreset.ior,
-    dispersion: startupPreset.dispersion,
-    thickness: startupPreset.thickness,
+    transmission: startupPreset.clothRefraction ? 1 : 0,
+    ior: startupPreset.clothIor ?? 1.5,
+    dispersion: startupPreset.clothDispersion ?? 0,
+    thickness: startupPreset.clothThickness ?? 0,
+    iridescence: startupPreset.clothIridescence ?? 0,
+    iridescenceIOR: startupPreset.clothIridescenceIOR ?? 1.3,
+    iridescenceThicknessRange: [
+      startupPreset.clothIridescenceThicknessMin ?? 100,
+      startupPreset.clothIridescenceThicknessMax ?? 400,
+    ],
   });
 
   function applyReliefHeight(height, { ripple = false } = {}) {
@@ -492,33 +499,6 @@ async function init() {
   const metalnessCtrl = materialFolder.add(guiParams, "metalness", 0, 1, 0.01);
   const colorCtrl = materialFolder.addColor(guiParams, "color").onChange((v) => { material.color.set(v); });
 
-  guiParams.refraction = material.transmission > 0;
-  guiParams.ior = material.ior;
-  // WebGPU/TSL compiles a material's node graph once and caches it; toggling
-  // transmission on switches which lighting-model branch that graph needs
-  // (plain PBR vs. IBL volume refraction), so it has to be told to rebuild —
-  // just mutating the property is silently ignored by the cached shader.
-  const refractionCtrl = materialFolder.add(guiParams, "refraction").onChange((v) => {
-    material.transmission = v ? 1 : 0;
-    material.needsUpdate = true;
-  });
-  const iorCtrl = materialFolder.add(guiParams, "ior", 1, 2.333, 0.001).name("index of refraction").onChange((v) => {
-    material.ior = v;
-    material.needsUpdate = true;
-  });
-  guiParams.thickness = material.thickness;
-  // The actual bend/distortion (not just IOR's Fresnel-reflectivity effect)
-  // scales with thickness — see the comment where the material is created.
-  const thicknessCtrl = materialFolder.add(guiParams, "thickness", 0, 1, 0.005).name("refraction depth").onChange((v) => {
-    material.thickness = v;
-    material.needsUpdate = true;
-  });
-  guiParams.dispersion = material.dispersion;
-  const dispersionCtrl = materialFolder.add(guiParams, "dispersion", 0, 5, 0.01).name("chromatic aberration").onChange((v) => {
-    material.dispersion = v;
-    material.needsUpdate = true;
-  });
-
   // Hotlinked rather than vendored — 130 panoramas would bloat the repo,
   // and the host already serves them with permissive CORS headers so they
   // can be loaded straight into a WebGPU texture.
@@ -656,6 +636,26 @@ async function init() {
   guiParams.clothDispersion = clothMaterial.dispersion;
   const clothDispersionCtrl = clothMaterialFolder.add(guiParams, "clothDispersion", 0, 5, 0.01).name("chromatic aberration").onChange((v) => {
     clothMaterial.dispersion = v;
+    clothMaterial.needsUpdate = true;
+  });
+  guiParams.clothIridescence = clothMaterial.iridescence;
+  const clothIridescenceCtrl = clothMaterialFolder.add(guiParams, "clothIridescence", 0, 1, 0.01).name("iridescence").onChange((v) => {
+    clothMaterial.iridescence = v;
+    clothMaterial.needsUpdate = true;
+  });
+  guiParams.clothIridescenceIOR = clothMaterial.iridescenceIOR;
+  const clothIridescenceIorCtrl = clothMaterialFolder.add(guiParams, "clothIridescenceIOR", 1, 2.5, 0.01).name("iridescence ior").onChange((v) => {
+    clothMaterial.iridescenceIOR = v;
+    clothMaterial.needsUpdate = true;
+  });
+  guiParams.clothIridescenceThicknessMin = clothMaterial.iridescenceThicknessRange[0];
+  const clothIridescenceThicknessMinCtrl = clothMaterialFolder.add(guiParams, "clothIridescenceThicknessMin", 0, 1000, 1).name("iridescence thickness min").onChange((v) => {
+    clothMaterial.iridescenceThicknessRange = [v, clothMaterial.iridescenceThicknessRange[1]];
+    clothMaterial.needsUpdate = true;
+  });
+  guiParams.clothIridescenceThicknessMax = clothMaterial.iridescenceThicknessRange[1];
+  const clothIridescenceThicknessMaxCtrl = clothMaterialFolder.add(guiParams, "clothIridescenceThicknessMax", 0, 1000, 1).name("iridescence thickness max").onChange((v) => {
+    clothMaterial.iridescenceThicknessRange = [clothMaterial.iridescenceThicknessRange[0], v];
     clothMaterial.needsUpdate = true;
   });
   // Defaults to None (no extra texture load) rather than mirroring the
@@ -817,10 +817,6 @@ async function init() {
       roughness: guiParams.roughness,
       metalness: guiParams.metalness,
       color: guiParams.color,
-      refraction: guiParams.refraction,
-      ior: guiParams.ior,
-      thickness: guiParams.thickness,
-      dispersion: guiParams.dispersion,
       envMap: guiParams.envMap,
       lightX: guiParams.lightX,
       lightY: guiParams.lightY,
@@ -856,6 +852,10 @@ async function init() {
       clothIor: guiParams.clothIor,
       clothThickness: guiParams.clothThickness,
       clothDispersion: guiParams.clothDispersion,
+      clothIridescence: guiParams.clothIridescence,
+      clothIridescenceIOR: guiParams.clothIridescenceIOR,
+      clothIridescenceThicknessMin: guiParams.clothIridescenceThicknessMin,
+      clothIridescenceThicknessMax: guiParams.clothIridescenceThicknessMax,
       clothLogoImage: guiParams.clothLogoImage,
       clothReliefHeight: guiParams.clothReliefHeight,
       liquidEnabled: guiParams.liquidEnabled,
@@ -871,7 +871,6 @@ async function init() {
   const PRESET_CONTROLLERS = {
     liquidEnabled: liquidEnabledCtrl,
     roughness: roughnessCtrl, metalness: metalnessCtrl, color: colorCtrl,
-    refraction: refractionCtrl, ior: iorCtrl, thickness: thicknessCtrl, dispersion: dispersionCtrl,
     envMap: envMapCtrl, lightX: lightXCtrl, lightY: lightYCtrl, lightZ: lightZCtrl,
     lightIntensity: lightIntensityCtrl, logoImage: logoImageCtrl, reliefHeight: reliefCtrl,
     pointerRadius: pointerRadiusCtrl, pointerStrength: pointerStrengthCtrl,
@@ -885,7 +884,11 @@ async function init() {
     clothPointerRadius: clothPointerRadiusCtrl, clothPointerStrength: clothPointerStrengthCtrl,
     clothRoughness: clothRoughnessCtrl, clothMetalness: clothMetalnessCtrl, clothColor: clothColorCtrl,
     clothRefraction: clothRefractionCtrl, clothIor: clothIorCtrl,
-    clothThickness: clothThicknessCtrl, clothDispersion: clothDispersionCtrl, clothEnvMap: clothEnvMapCtrl,
+    clothThickness: clothThicknessCtrl, clothDispersion: clothDispersionCtrl,
+    clothIridescence: clothIridescenceCtrl, clothIridescenceIOR: clothIridescenceIorCtrl,
+    clothIridescenceThicknessMin: clothIridescenceThicknessMinCtrl,
+    clothIridescenceThicknessMax: clothIridescenceThicknessMaxCtrl,
+    clothEnvMap: clothEnvMapCtrl,
     clothLogoImage: clothLogoImageCtrl, clothReliefHeight: clothReliefCtrl,
     clothMeshResolution: clothMeshResolutionCtrl,
   };
