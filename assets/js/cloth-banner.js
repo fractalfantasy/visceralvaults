@@ -275,7 +275,16 @@ async function init() {
   // way that did.
   function chromaticFringeNode(amountUniform) {
     const base = THREE.screenUV;
-    const offset = THREE.transformedNormalView.xy.mul(amountUniform);
+    // The raw view-space normal's xy is tiny across most of a gently-
+    // rippled/embossed surface (which is where we actually want visible
+    // fringing) but spikes hard at a handful of PlaneGeometry boundary
+    // vertices (a mesh-edge normal-averaging artifact, not a real bump) —
+    // left unclamped, "amount" has to stay so low to keep the corners sane
+    // that the interior fringe never shows at all. Clamping the tilt first,
+    // then amplifying it, fixes both: the corners stay bounded and the
+    // interior becomes visible.
+    const tilt = THREE.clamp(THREE.transformedNormalView.xy, -0.15, 0.15);
+    const offset = tilt.mul(amountUniform).mul(4);
     const center = backdropTexture.uv(base);
     const r = backdropTexture.uv(base.add(offset)).r;
     const b = backdropTexture.uv(base.sub(offset)).b;
@@ -528,7 +537,7 @@ async function init() {
   guiParams.dispersion = dispersionAmount.value;
   // Just a uniform's live value — no shader-graph change, so no
   // needsUpdate needed (see chromaticFringeNode where this is created).
-  const dispersionCtrl = materialFolder.add(guiParams, "dispersion", 0, 0.05, 0.001).name("chromatic aberration").onChange((v) => {
+  const dispersionCtrl = materialFolder.add(guiParams, "dispersion", 0, 0.3, 0.005).name("chromatic aberration").onChange((v) => {
     dispersionAmount.value = v;
   });
 
@@ -667,7 +676,7 @@ async function init() {
     clothMaterial.needsUpdate = true;
   });
   guiParams.clothDispersion = clothDispersionAmount.value;
-  const clothDispersionCtrl = clothMaterialFolder.add(guiParams, "clothDispersion", 0, 0.05, 0.001).name("chromatic aberration").onChange((v) => {
+  const clothDispersionCtrl = clothMaterialFolder.add(guiParams, "clothDispersion", 0, 0.3, 0.005).name("chromatic aberration").onChange((v) => {
     clothDispersionAmount.value = v;
   });
   // Defaults to None (no extra texture load) rather than mirroring the
