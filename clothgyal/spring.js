@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildSubdivision } from './subdiv.js';
+import { buildSubdivision } from './subdiv.js?v=c562c3ea19';
 
 // Real-time "spring skin": every vertex is attracted to its skinned+morphed target position,
 // with gravity, wind noise, damping, fold slack (edge rest lengths longer than the body),

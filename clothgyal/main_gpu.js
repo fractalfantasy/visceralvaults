@@ -6,8 +6,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import * as dat from 'dat.gui';
-import { FACE_PRESETS, applyFace } from './face.js';
-import { GpuSkin } from './gpuskin.js';
+import { FACE_PRESETS, applyFace } from './face.js?v=c562c3ea19';
+import { GpuSkin } from './gpuskin.js?v=c562c3ea19';
 
 if (!navigator.gpu) {
   document.getElementById('loading').innerHTML = 'WebGPU is not available in this browser.<br>Use Chrome / Edge / Safari 26+, or the <a href="./cpu.html" style="color:#7fb">CPU version</a>.';
@@ -305,7 +305,7 @@ function buildSkin() {
 
 const clock = new THREE.Clock();
 
-new GLTFLoader().load('./clothgyal.glb', (gltf) => {
+new GLTFLoader().load('./clothgyal.glb?v=c562c3ea19', (gltf) => {
   document.getElementById('loading').remove();
   const root = gltf.scene;
   scene.add(root);
@@ -323,8 +323,8 @@ new GLTFLoader().load('./clothgyal.glb', (gltf) => {
   body.visible = false; // the simulated copy is what we see
 
   mixer = new THREE.AnimationMixer(root);
-  fetch('./presets.json').then((r) => (r.ok ? r.json() : {})).catch(() => ({})).then((pr) => { FILE_PRESETS = pr || {}; })
-  .then(() => fetch('./anims.json')).then((r) => r.json()).then((list) => {
+  fetch('./presets.json?v=c562c3ea19').then((r) => (r.ok ? r.json() : {})).catch(() => ({})).then((pr) => { FILE_PRESETS = pr || {}; })
+  .then(() => fetch('./anims.json?v=c562c3ea19')).then((r) => r.json()).then((list) => {
     for (const d of list) danceFiles[d.name] = d.file;
     const names = list.map((d) => d.name).sort((a, b) => a.localeCompare(b));
     if (!names.includes(P.dance)) P.dance = names.includes('SingleLadiesTikTokDone') ? 'SingleLadiesTikTokDone' : names[0];

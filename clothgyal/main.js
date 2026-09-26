@@ -8,8 +8,8 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import * as dat from 'dat.gui';
-import { FACE_PRESETS, applyFace } from './face.js';
-import { SpringSkin } from './spring.js';
+import { FACE_PRESETS, applyFace } from './face.js?v=c562c3ea19';
+import { SpringSkin } from './spring.js?v=c562c3ea19';
 
 // ---------- renderer / scene
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -324,7 +324,7 @@ function buildSkin() {
 
 const clock = new THREE.Clock();
 
-new GLTFLoader().load('./clothgyal.glb', (gltf) => { try { onLoaded(gltf); } catch (e) { console.error('load handler failed', e); window.__loadErr = e; } }, (e) => {
+new GLTFLoader().load('./clothgyal.glb?v=c562c3ea19', (gltf) => { try { onLoaded(gltf); } catch (e) { console.error('load handler failed', e); window.__loadErr = e; } }, (e) => {
   const el = document.getElementById('loading');
   if (el && e.total) el.textContent = `loading clothgyal.glb… ${Math.round(100 * e.loaded / e.total)}%`;
 }, (err) => { document.getElementById('loading').textContent = 'failed to load clothgyal.glb: ' + err.message; });
@@ -346,8 +346,8 @@ function onLoaded(gltf) {
   body.visible = false; // the simulated copy is what we see
 
   mixer = new THREE.AnimationMixer(root);
-  fetch('./presets.json').then((r) => (r.ok ? r.json() : {})).catch(() => ({})).then((pr) => { FILE_PRESETS = pr || {}; })
-  .then(() => fetch('./anims.json')).then((r) => r.json()).then((list) => {
+  fetch('./presets.json?v=c562c3ea19').then((r) => (r.ok ? r.json() : {})).catch(() => ({})).then((pr) => { FILE_PRESETS = pr || {}; })
+  .then(() => fetch('./anims.json?v=c562c3ea19')).then((r) => r.json()).then((list) => {
     for (const d of list) danceFiles[d.name] = d.file;
     const names = list.map((d) => d.name).sort((a, b) => a.localeCompare(b));
     if (!names.includes(P.dance)) P.dance = names.includes('SingleLadiesTikTokDone') ? 'SingleLadiesTikTokDone' : names[0];

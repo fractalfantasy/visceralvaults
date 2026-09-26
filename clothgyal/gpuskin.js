@@ -8,7 +8,7 @@
 //   normal : per-vertex normals from incident triangles (for rendering)
 // The render mesh reads positions/normals straight from the storage buffers (no CPU readback).
 import * as THREE from 'three/webgpu';
-import { buildSubdivision } from './subdiv.js';
+import { buildSubdivision } from './subdiv.js?v=c562c3ea19';
 import {
   Fn, If, Loop, uint, float, vec3, vec4, mat4, uniform, storage, instanceIndex,
   normalize, cross, length, max, min, clamp, mix, smoothstep, mx_noise_vec3, mx_noise_float, transformNormalToView,
