@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ClothGyal</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; font-family: system-ui, sans-serif; }
+  #hud { position: fixed; left: 12px; bottom: 10px; color: #7fb; font-size: 12px; opacity: .8; pointer-events: none; }
+  #loading { position: fixed; inset: 0; display: grid; place-items: center; color: #9cc; font-size: 14px; }
+  /* dat.gui only measures its height once; let the panel scroll within the window whatever is open */
+  .dg.ac { max-height: 100vh; }
+  .dg.main { max-height: 100vh; overflow-y: auto !important; overflow-x: hidden; }
+  .dg.main > ul { height: auto !important; max-height: none !important; overflow: visible !important; }
+  /* dat.gui makes the button position:absolute when tall (it ends up above the screen): pin it to the panel bottom */
+  .dg.main .close-button, .dg.main.taller-than-window .close-button { position: sticky !important; bottom: 0 !important; top: auto !important; margin-top: 0 !important; z-index: 2; }
+</style>
+<script>
+  // prefer the WebGPU version when the browser supports it (add ?cpu to stay on this one)
+  if (navigator.gpu && !/[?&]cpu\b/.test(location.search)) location.replace('./gpu.html' + location.hash);
+</script>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
+  "dat.gui": "https://cdn.jsdelivr.net/npm/dat.gui@0.7.9/build/dat.gui.module.js"
+} }
+</script>
+</head>
+<body>
+<div id="loading">loading clothgyal.glb…</div>
+<div id="hud"></div>
+<div style="position:fixed;left:12px;top:10px;color:#7fb;font-size:12px;opacity:.85">CPU solver · <a href="./gpu.html" style="color:#7fb">switch to GPU version (WebGPU)</a></div>
+<script type="module" src="./main.js"></script>
+</body>
+</html>
