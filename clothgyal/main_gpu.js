@@ -10,7 +10,7 @@ import { FACE_PRESETS, applyFace } from './face.js';
 import { GpuSkin } from './gpuskin.js';
 
 if (!navigator.gpu) {
-  document.getElementById('loading').innerHTML = 'WebGPU is not available in this browser.<br>Use Chrome / Edge / Safari 26+, or the <a href="./index.html?cpu" style="color:#7fb">CPU version</a>.';
+  document.getElementById('loading').innerHTML = 'WebGPU is not available in this browser.<br>Use Chrome / Edge / Safari 26+, or the <a href="./cpu.html" style="color:#7fb">CPU version</a>.';
   throw new Error('no WebGPU');
 }
 
