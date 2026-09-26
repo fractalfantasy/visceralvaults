@@ -330,6 +330,7 @@ new GLTFLoader().load('./clothgyal.glb', (gltf) => {
     if (!names.includes(P.dance)) P.dance = names.includes('SingleLadiesTikTokDone') ? 'SingleLadiesTikTokDone' : names[0];
     danceList = names;
     buildGUI(names);
+    gui.close();   // start with the controls collapsed
     applyPreset(P.preset, true);
     playDance(P.dance);
     renderer.setAnimationLoop(tick);
