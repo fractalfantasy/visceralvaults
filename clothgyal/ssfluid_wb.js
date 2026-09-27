@@ -9,7 +9,7 @@
 import * as THREE from 'three/webgpu';
 import { Fn, If, Loop, float, int, vec4, uniform, texture, uv, instanceIndex, positionGeometry, cameraViewMatrix,
   sqrt, exp, max, min, dot, clamp, ceil } from 'three/tsl';
-import { FluidSurface } from './ssfluid.js?v=f3eb47adb6';
+import { FluidSurface } from './ssfluid.js?v=e4fb0672f0';
 
 const MAX_TAPS = 100;                // hard cap on filter half-widths (px)
 

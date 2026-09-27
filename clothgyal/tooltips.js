@@ -31,6 +31,7 @@ const TIPS = {
   face: 'Facial expression.',
   faceAmount: 'How strong the expression is.',
   blink: 'Automatic blinking.',
+  lashBlink: 'How far the eyelashes close when she blinks (1 = exactly with the lid, higher = the upper lashes come down further).',
   talk: 'Loop a talking mouth motion.',
   lookAround: 'Eyes wander around.',
   playable: 'Control her yourself: W A S D to move (relative to the camera), Space to front flip, Shift to crouch. Turn off to go back to the dance.',

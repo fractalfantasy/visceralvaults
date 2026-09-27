@@ -16,12 +16,12 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import * as dat from 'dat.gui';
-import { FACE_PRESETS, applyFace } from './face.js?v=f3eb47adb6';
-import { GpuSkin } from './gpuskin.js?v=f3eb47adb6';
-import { LiquidSystem, liquidDefaults, addMaterialControls, applyPhysical, MATERIAL_FIELDS } from './liquids.js?v=f3eb47adb6';
-import { HectorLiquid, hectorDefaults } from './liquid3.js?v=f3eb47adb6';
-import { Player, playerDefaults, BASIC_IDLE } from './player.js?v=f3eb47adb6';
-import { addTooltips } from './tooltips.js?v=f3eb47adb6';
+import { FACE_PRESETS, applyFace, followEyelids } from './face.js?v=e4fb0672f0';
+import { GpuSkin } from './gpuskin.js?v=e4fb0672f0';
+import { LiquidSystem, liquidDefaults, addMaterialControls, applyPhysical, MATERIAL_FIELDS } from './liquids.js?v=e4fb0672f0';
+import { HectorLiquid, hectorDefaults } from './liquid3.js?v=e4fb0672f0';
+import { Player, playerDefaults, BASIC_IDLE } from './player.js?v=e4fb0672f0';
+import { addTooltips } from './tooltips.js?v=e4fb0672f0';
 
 if (!navigator.gpu) {
   document.getElementById('loading').textContent = 'WebGPU is not available in this browser (use Chrome / Edge / Safari 26+).';
@@ -54,7 +54,7 @@ const P = {
   preset: '',
   // animation + face
   dance: '', speed: 1.0, playing: true, loopFade: 0.4,
-  face: 'neutral', faceAmount: 1.0, blink: true, talk: false, lookAround: false,
+  face: 'neutral', faceAmount: 1.0, blink: true, lashBlink: 1.4, talk: false, lookAround: false,
   // body (spring-cloth skin)
   showBody: true, resolution: 'base (~13k pts)', simulate: true,
   stiffness: 350, damping: 9, motionDrag: 0.3, gravity: 2.0, slack: 0.15, stretch: 0.9, iterations: 6, offset: 0.002, smoothBase: 1.0, bending: 0.3,
@@ -228,7 +228,7 @@ floor.renderOrder = -1; floor.visible = false;
 scene.add(floor);
 
 // ---------- character, skin, animation
-let mixer, current, currentPair = null, body, skin, bodyMorphDict, hipsBone, player;
+let mixer, current, currentPair = null, body, skin, bodyMorphDict, hipsBone, player, lashes = [];
 const actions = {}, danceFiles = {}, charParts = [];
 let danceList = [], loadToken = 0, hudExtra = '';
 const animLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);   // dances are resampled + meshopt-compressed
@@ -492,7 +492,8 @@ function buildGUI() {
   const ff = fa.addFolder('Face');
   ff.add(P, 'face', Object.keys(FACE_PRESETS)).name('expression');
   ff.add(P, 'faceAmount', 0, 1.5, 0.01).name('amount');
-  ff.add(P, 'blink'); ff.add(P, 'talk').name('talk loop'); ff.add(P, 'lookAround').name('look around');
+  ff.add(P, 'blink'); ff.add(P, 'lashBlink', 0.5, 2.5, 0.01).name('lash blink depth');
+  ff.add(P, 'talk').name('talk loop'); ff.add(P, 'lookAround').name('look around');
 
   const fb = gui.addFolder('Body');
   fb.add(P, 'showBody').name('show body');
@@ -569,7 +570,7 @@ function buildGUI() {
 }
 
 // ---------- load everything, then run
-new GLTFLoader().load('./clothgyal.glb?v=f3eb47adb6', async (gltf) => {
+new GLTFLoader().load('./clothgyal.glb?v=e4fb0672f0', async (gltf) => {
   document.getElementById('loading').remove();
   const root = gltf.scene;
   scene.add(root);
@@ -582,13 +583,14 @@ new GLTFLoader().load('./clothgyal.glb?v=f3eb47adb6', async (gltf) => {
   root.traverse((o) => { if (o.isMesh && o !== body) charParts.push(o); });   // eyes, lashes, teeth (hidden with the body)
   body.visible = false;                                                        // the simulated skin is what we see
   bodyMorphDict = body.morphTargetDictionary || {};
+  lashes = followEyelids(body, charParts.filter((o) => o.isSkinnedMesh && /eyelash/i.test(o.name)));   // blink with the lids
   hipsBone = body.skeleton.bones.find((b) => /hips/i.test(b.name)) || body.skeleton.bones[0];
   mixer = new THREE.AnimationMixer(root);
   player = new Player({ root, body, mixer, loader: animLoader, P,
     getDanceClip: (name) => new Promise((res, rej) => animLoader.load(danceFiles[name], (g) => res(g.animations[0]), undefined, rej)) });
 
-  FILE_PRESETS = await fetch('./presets.json?v=f3eb47adb6').then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
-  const list = await fetch('./anims.json?v=f3eb47adb6').then((r) => r.json());
+  FILE_PRESETS = await fetch('./presets.json?v=e4fb0672f0').then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
+  const list = await fetch('./anims.json?v=e4fb0672f0').then((r) => r.json());
   for (const d of list) danceFiles[d.name] = d.file;
   danceList = list.map((d) => d.name).sort((a, b) => a.localeCompare(b));
   P.dance = danceList.includes('SingleLadiesTikTokDone') ? 'SingleLadiesTikTokDone' : danceList[0];
@@ -612,7 +614,7 @@ function frame() {
   const t = forced ? (window.__cg.simT = (window.__cg.simT || 0) + forced) : clock.elapsedTime;
   if (P.playing) { updateLooping(); player?.update(dt * P.speed, camera); mixer.update(dt * P.speed); }
   floor.visible = P.playable && P.showFloor; floor.position.set(Math.round(camera.position.x), -0.002, Math.round(camera.position.z));
-  applyFace(body, bodyMorphDict, P, t);
+  applyFace(body, bodyMorphDict, P, t, lashes);
   scene.updateMatrixWorld();
   detectJumps();
 

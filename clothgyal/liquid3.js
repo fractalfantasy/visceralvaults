@@ -25,7 +25,7 @@ import {
   float, int, uint, ivec3, vec3, vec4, mat4, array, cos, normalize, length, max, min, clamp, mix, cross, dot, exp, floor,
   atomicAdd, atomicLoad, atomicStore, atomicMax, transformNormalToView,
 } from 'three/tsl';
-import { addMaterialControls, applyPhysical } from './liquids.js?v=f3eb47adb6';
+import { addMaterialControls, applyPhysical } from './liquids.js?v=e4fb0672f0';
 
 const MAX_P = 250000;          // particle buffers
 const MAX_T = 800000;          // marching-cubes triangles

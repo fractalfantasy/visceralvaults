@@ -4,9 +4,9 @@
 // same key names prefixed 'l2_' through a small proxy, so every piece of code works with either liquid.
 import * as THREE from 'three/webgpu';
 import { uniform } from 'three/tsl';
-import { Liquid, LIQUID_MAX } from './liquid.js?v=f3eb47adb6';
-import { ScreenSpaceFluid } from './ssfluid.js?v=f3eb47adb6';
-import { WaterballFluid } from './ssfluid_wb.js?v=f3eb47adb6';
+import { Liquid, LIQUID_MAX } from './liquid.js?v=e4fb0672f0';
+import { ScreenSpaceFluid } from './ssfluid.js?v=e4fb0672f0';
+import { WaterballFluid } from './ssfluid_wb.js?v=e4fb0672f0';
 
 // ---- settings (Liquid 1 names; Liquid 2 = same names prefixed l2_)
 const SHARED = {
