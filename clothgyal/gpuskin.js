@@ -2,16 +2,16 @@
 // Same model as spring.js, but everything runs on the GPU:
 //   skin   : base mesh morphs (ARKit/visemes) + linear-blend skinning   -> baseT / baseN
 //   expand : barycentric upsample to the subdivided sim mesh            -> T / N (targets)
-//   force  : spring-to-target, damping, gravity-sag, wind noise         -> p, v
+//   force  : spring-to-target, damping (relative to the body's motion, + motion drag), gravity-sag, wind -> p, v
 //   corr/apply (xN): Jacobi edge-length constraints via neighbour lists + stay-outside-body
 //   final  : hard lock of fully pinned areas, velocity from positions
 //   normal : per-vertex normals from incident triangles (for rendering)
 // The render mesh reads positions/normals straight from the storage buffers (no CPU readback).
 import * as THREE from 'three/webgpu';
-import { buildSubdivision } from './subdiv.js?v=c562c3ea19';
+import { buildSubdivision } from './subdiv.js?v=f3eb47adb6';
 import {
   Fn, If, Loop, uint, float, vec3, vec4, mat4, uniform, storage, instanceIndex,
-  normalize, cross, length, max, min, clamp, mix, smoothstep, mx_noise_vec3, mx_noise_float, transformNormalToView,
+  normalize, cross, length, max, clamp, mix, smoothstep, mx_noise_vec3, mx_noise_float, transformNormalToView,
 } from 'three/tsl';
 
 function sbuf(array, itemSize, type) {
@@ -103,7 +103,6 @@ export class GpuSkin {
       nIdx[nOff[b] + fillN[b]] = a; nSlack[nOff[b] + fillN[b]++] = s;
     }
     for (let t = 0; t < tris.length / 3; t++) for (let k = 0; k < 3; k++) { const u = tris[3 * t + k]; tIdx[tOff[u] + fillT[u]++] = t; }
-    this.nEdges = eA.length; this.nTris = tris.length / 3;
     this.buildMs = performance.now() - t0;
 
     // ---- GPU buffers
@@ -118,7 +117,7 @@ export class GpuSkin {
       T: sbuf(new Float32Array(nU * 4), 4, 'vec4'), N: sbuf(new Float32Array(nU * 4), 4, 'vec4'),
       p: sbuf(new Float32Array(nU * 4), 4, 'vec4'), pp: sbuf(new Float32Array(nU * 4), 4, 'vec4'),
       v: sbuf(new Float32Array(nU * 4), 4, 'vec4'), corr: sbuf(new Float32Array(nU * 4), 4, 'vec4'),
-      dn: sbuf(new Float32Array(nU * 4), 4, 'vec4'),
+      dn: sbuf(new Float32Array(nU * 4), 4, 'vec4'), tv: sbuf(new Float32Array(nU * 4), 4, 'vec4'),   // tv = target velocity
       nOff: sbuf(nOff, 1, 'uint'), nCnt: sbuf(nCnt, 1, 'uint'), nIdx: sbuf(nIdx, 1, 'uint'), nSlack: sbuf(nSlack, 1, 'float'),
       tOff: sbuf(tOff, 1, 'uint'), tCnt: sbuf(tCnt, 1, 'uint'), tIdx: sbuf(tIdx, 1, 'uint'), tris: sbuf(tris, 1, 'uint'),
     };
@@ -129,7 +128,7 @@ export class GpuSkin {
     if (this.lv.length) { S.W0 = sbuf(new Float32Array(nU * 4), 4, 'vec4'); S.W1 = sbuf(new Float32Array(nU * 4), 4, 'vec4'); }
     this.S = S;
     const U = (this.U = {
-      pre: uniform(new THREE.Matrix4()), dt: uniform(1 / 60), time: uniform(0), reset: uniform(1),
+      pre: uniform(new THREE.Matrix4()), dt: uniform(1 / 60), fdt: uniform(1 / 60), drag: uniform(0.3), time: uniform(0), reset: uniform(1),
       k0: uniform(350), damp: uniform(9), grav: uniform(0.02), slack: uniform(0.15), stretch: uniform(0.9), offset: uniform(0.002), phong: uniform(0.75), bend: uniform(0.3), holdScale: uniform(1), headHold: uniform(0.55), lockThr: uniform(0.75),
       ws: uniform(1), wsc: uniform(12), wsp: uniform(0.6), wdir: uniform(new THREE.Vector3(0.6, 0.1, -0.6)),
     });
@@ -184,6 +183,11 @@ export class GpuSkin {
       // smooth target: Loop-subdivided surface (topology stencils), blended with the flat position
       const t = smoothSrc ? lin.add(smoothSrc.element(u).xyz.sub(lin).mul(U.phong)) : lin;
       const nn = normalize(na.mul(w.x).add(nb.mul(w.y)).add(nc.mul(w.z)));
+      // how fast the body moves this point (clamped: a loop wrap / reset jump is handled by carry / reset instead)
+      const tv = t.sub(S.T.element(u).xyz).div(U.fdt).toVar();
+      const tl = length(tv);
+      If(tl.greaterThan(20.0), () => { tv.assign(tv.mul(20.0).div(tl)); });
+      S.tv.element(u).assign(vec4(tv, 0.0));
       S.T.element(u).assign(vec4(t, 1.0)); S.N.element(u).assign(vec4(nn, 0.0));
     })().compute(nU);
 
@@ -211,11 +215,12 @@ export class GpuSkin {
       S.p.element(u).assign(vec4(S.p.element(u).xyz.add(d), 1.0));
       S.pp.element(u).assign(vec4(S.pp.element(u).xyz.add(d), 1.0));
       S.v.element(u).assign(vec4(0.0));          // drop world-space momentum: skin holds its shape relative to the body
+      S.tv.element(u).assign(vec4(0.0));
     })().compute(nU);
 
     this.kReset = Fn(() => {
       const u = instanceIndex, t = S.T.element(u);
-      S.p.element(u).assign(t); S.pp.element(u).assign(t); S.v.element(u).assign(vec4(0.0));
+      S.p.element(u).assign(t); S.pp.element(u).assign(t); S.v.element(u).assign(vec4(0.0)); S.tv.element(u).assign(vec4(0.0));
     })().compute(nU);
 
     this.kForce = Fn(() => {
@@ -223,7 +228,10 @@ export class GpuSkin {
       const pinv = effPin(u).toVar(), free = float(1.0).sub(pinv);
       const k = U.k0.mul(pinv.mul(0.75).add(0.25));
       const p = S.p.element(u).xyz, vel = S.v.element(u).xyz, t = S.T.element(u).xyz;
-      const acc = t.sub(p).mul(k).sub(vel.mul(U.damp)).sub(vec3(0.0, k.mul(U.grav).mul(free), 0.0)).toVar();
+      // damping acts on the velocity RELATIVE to the body (so running doesn't drag the whole skin behind her); motion
+      // drag puts back a share of world-space drag = the cloth streams back against the direction she moves
+      const rel = vel.sub(S.tv.element(u).xyz.mul(float(1.0).sub(U.drag)));
+      const acc = t.sub(p).mul(k).sub(rel.mul(U.damp)).sub(vec3(0.0, k.mul(U.grav).mul(free), 0.0)).toVar();
       If(U.ws.greaterThan(0.0), () => {
         const q = p.mul(U.wsc);
         const nz = mx_noise_vec3(q.add(vec3(0.0, 0.0, U.time.mul(U.wsp))));
@@ -251,14 +259,16 @@ export class GpuSkin {
       S.corr.element(u).assign(vec4(c.div(max(float(cnt), 1.0)), 0.0));
     })().compute(nU);
 
-    this.kApply = Fn(() => {
+    // apply a correction, then stay at least `offset` outside the body (along the target normal)
+    const applyOutside = (scale) => Fn(() => {
       const u = instanceIndex;
-      const p = S.p.element(u).xyz.add(S.corr.element(u).xyz.mul(U.stretch)).toVar();
+      const p = S.p.element(u).xyz.add(S.corr.element(u).xyz.mul(scale)).toVar();
       const t = S.T.element(u).xyz, nn = S.N.element(u).xyz;
       const d = p.sub(t).dot(nn);
       If(d.lessThan(U.offset), () => { p.addAssign(nn.mul(U.offset.sub(d))); });
       S.p.element(u).assign(vec4(p, 1.0));
     })().compute(nU);
+    this.kApply = applyOutside(U.stretch);
 
     this.kBendCorr = Fn(() => {
       const u = instanceIndex;
@@ -273,14 +283,7 @@ export class GpuSkin {
       S.corr.element(u).assign(vec4(avg.sub(du).mul(U.bend), 0.0));
     })().compute(nU);
 
-    this.kBendApply = Fn(() => {
-      const u = instanceIndex;
-      const p = S.p.element(u).xyz.add(S.corr.element(u).xyz).toVar();
-      const t = S.T.element(u).xyz, nn = S.N.element(u).xyz;
-      const d = p.sub(t).dot(nn);
-      If(d.lessThan(U.offset), () => { p.addAssign(nn.mul(U.offset.sub(d))); });
-      S.p.element(u).assign(vec4(p, 1.0));
-    })().compute(nU);
+    this.kBendApply = applyOutside(1.0);
 
     this.kFinal = Fn(() => {
       const u = instanceIndex;
@@ -325,7 +328,8 @@ export class GpuSkin {
 
   dispose() {
     this.mesh.geometry.dispose();
-    for (const k in this.S) { const a = this.S[k].value; if (a && a.dispose) a.dispose(); }
+    const bufs = [...Object.values(this.S), ...this.lv.flatMap((L) => [L.off, L.idx, L.w])];   // incl. subdivision stencils
+    for (const b of bufs) b?.value?.dispose?.();
   }
 
   step(dtFrame, time) {
@@ -335,6 +339,7 @@ export class GpuSkin {
     const bones = S.bones.value; bones.array.set(s.skeleton.boneMatrices); bones.needsUpdate = true;
     if (this.nMorph) { const inf = S.infl.value; inf.array.set(s.morphTargetInfluences); inf.needsUpdate = true; }
     U.pre.value.multiplyMatrices(s.matrixWorld, s.bindMatrixInverse);
+    U.fdt.value = Math.max(dtFrame, 1e-4); U.drag.value = P.motionDrag ?? 0.3;
     U.k0.value = P.stiffness; U.damp.value = P.damping; U.grav.value = P.gravity * 0.01; U.slack.value = P.slack;
     U.stretch.value = P.stretch; U.offset.value = P.offset; U.phong.value = P.smoothBase; U.bend.value = P.bending;
     U.holdScale.value = P.holdScale ?? 1; U.headHold.value = P.headHold ?? 0.55; U.lockThr.value = P.lockThreshold ?? 0.75;
@@ -348,7 +353,7 @@ export class GpuSkin {
     r.compute(this.kExpand);
     if (this.lv.length) r.compute(this.kTNormal);
     if (U.reset.value > 0.5) { r.compute(this.kReset); U.reset.value = 0; }
-    else if (carry) { if (this.lv.length) r.compute(this.kTNormal); r.compute(this.kCarry); }
+    else if (carry) { if (this.lv.length) r.compute(this.kTNormal); r.compute(this.kCarry); if (this.onCarry) this.onCarry(); }
     if (P.simulate && dtFrame > 1e-4) {
       const sub = dtFrame > 1 / 45 ? 2 : 1, dt = dtFrame / sub;
       U.dt.value = dt;
