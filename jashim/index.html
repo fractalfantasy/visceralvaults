@@ -1,0 +1,240 @@
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>JASHIM — Press</title>
+        <!-- The same layout as fractalfantasy.net/tenbillionangels/press/. The player, three.js and the
+             songs come from fractalfantasy.net (its libraries and media.fractalfantasy.net send CORS: *) -->
+        <link rel="stylesheet" href="https://fractalfantasy.net/libs/ffplayer/ffplayer-unified.css">
+        <style type="text/css">
+
+        @font-face {
+          font-family: 'FFImpact';
+          src: url('https://fractalfantasy.net/signature/impact.woff') format('woff'), url('https://fractalfantasy.net/signature/impact.ttf') format('truetype');
+        }
+        h {
+          font-style:Arial;
+          font-size: 8;
+          text-align: left;
+        }
+        a:link {
+            color : black;
+            background-color : none ;
+        }
+        p    {
+        	color:white;
+        	font-family:avenir;
+        }
+        a:visited {
+            color : black;
+            background-color : none ;
+        }
+        a:hover {
+            color : black;
+            background-color : none ;
+        }
+        #container{
+            width: 100vw;
+            height: 100%;
+            position: fixed;
+            top: 0;
+            z-index: -100;
+            margin:auto;
+          text-align: center;
+
+        }
+        /* the text is as wide as the press pictures (70%), so both share one margin */
+        .column {
+ 	        width: 70%;
+ 		      border: 0px;
+  		    margin: 10px 0;
+  		    display: inline-block;
+  		    text-align: left;
+          color:white;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size:12;
+		    }
+
+        .container {
+          margin:auto;
+          text-align: center;
+        }
+
+        /* the album title, drawn as Ten Billion Angels' title image is: outlined Impact */
+        .title {
+          font-family: 'FFImpact', Impact, sans-serif;
+          font-size: min(12vw, 147px); /* stretched 150% wide: about as wide as the column, like the TBA title image */
+          line-height: 1;
+          letter-spacing: 4px;
+          color: transparent;
+          -webkit-text-stroke: 2px white;
+          text-align: center;
+        }
+        .title span { display: inline-block; transform: scaleX(1.5); }
+
+        /* the two singles, side by side */
+        body { padding-bottom: 90px; } /* room for the player bar */
+        .tracklist tr[data-song] { cursor: pointer; }
+        .tracklist tr[data-song]:hover { color: #aaa; }
+        .tracklist { color: white; font-family: Arial, Helvetica, sans-serif; font-size: 12px; text-align: left; }
+        .singles { width: 100%; border-spacing: 0; }
+        .singles td { width: 50%; padding: 0; vertical-align: top; color: white; font-size: 12px; }
+        .singles td:first-child { padding-right: 5px; }
+        .singles td:last-child { padding-left: 5px; }
+        .singles img { width: 100%; }
+        </style>
+    </head>
+    <body bgcolor="black">
+        <br>
+        <div id="container"></div>
+        <div class="container">
+        <div class="column">
+    <center>
+		  <img width="100%" src="img/jashim-cover.jpg"> <br><br>
+		  <div class="title"><span>JASHIM</span></div> <br><br>
+		</center>
+    JASHIM releases his self-titled debut album ‘JASHIM’, an exploration of courtship and love in Montreal’s latinx underground.
+        <br>
+        <br> The record moves between euphoria and vulnerability: beautiful micromelodies, rolling dembow, and the tension of two people caught on the same late-night frequency. It feels like a melancholic perreo on a mid-summer night.
+        <br>
+        <br> Jashim’s Colombian roots collide with the global zeitgeist as he moves through Guaracha, Neo-Perreo, Reggaeton, Brega Funk, Electro and Ballroom/Vogue. The album brings together artists from Colombia, Mexico and Quebec, switching fluidly between Spanish and French to build a cross-cultural dialogue that pushes the boundaries of Latin club music.
+        <br>
+        <br> Guests include vskz, Moonstar, Xlow, KIDDEIN and Sinjin Hawke, who also executive-produced the record. From the rolling dembow and deep UK bass of lead single ‘Yo Sé’ onward, the album dances between the romantic and the hedonistic: songs for perreo, with a melodic and emotional softness underneath.
+        <br>
+        <br>
+        <i> ‘JASHIM’ will be available on Friday, November 6th 2026 via all significant digital retailers on Visceral Vaults, a sublabel of Fractal Fantasy</i>
+        <br> <br>
+
+        <table class="singles">
+          <tr>
+            <td><img src="img/single-yo-se.jpg"><br><br>Yo Sé — single out October 2nd</td>
+            <td><img src="img/single-2.jpg"><br><br>Second single out October 16th</td>
+          </tr>
+        </table>
+        <br> <br>
+
+		<center>
+<table style="width: 100%; margin: 0;" class="tracklist" >
+  <tr data-song="0">
+    <td style="width: 20px;">1.</td>
+    <td style="width: 150px;">Jashim</td>
+    <td>Yo Sé</td>
+    <td style="width: 40px; text-align: right;">2:40</td>
+  </tr>
+  <tr data-song="1">
+    <td>2.</td>
+    <td>Jashim</td>
+    <td>Explosión del Corazón (feat. vskz)</td>
+    <td style="width: 40px; text-align: right;">3:26</td>
+  </tr>
+  <tr data-song="2">
+    <td>3.</td>
+    <td>Jashim</td>
+    <td>Llueven Balas en el Club</td>
+    <td style="width: 40px; text-align: right;">3:17</td>
+  </tr>
+  <tr data-song="3">
+    <td>4.</td>
+    <td>Jashim</td>
+    <td>Gistro (feat. Moonstar)</td>
+    <td style="width: 40px; text-align: right;">2:40</td>
+  </tr>
+  <tr data-song="4">
+    <td>5.</td>
+    <td>Jashim</td>
+    <td>Volver por Mí</td>
+    <td style="width: 40px; text-align: right;">2:11</td>
+  </tr>
+  <tr data-song="5">
+    <td>6.</td>
+    <td>Jashim</td>
+    <td>La Sigo</td>
+    <td style="width: 40px; text-align: right;">3:03</td>
+  </tr>
+  <tr data-song="6">
+    <td>7.</td>
+    <td>Jashim</td>
+    <td>Para Maria (feat. Sinjin Hawke)</td>
+    <td style="width: 40px; text-align: right;">4:14</td>
+  </tr>
+  <tr data-song="7">
+    <td>8.</td>
+    <td>Jashim</td>
+    <td>Loup-Garou</td>
+    <td style="width: 40px; text-align: right;">3:13</td>
+  </tr>
+  <tr data-song="8">
+    <td>9.</td>
+    <td>Jashim</td>
+    <td>Con Migo (feat. Xlow)</td>
+    <td style="width: 40px; text-align: right;">2:44</td>
+  </tr>
+  <tr data-song="9">
+    <td>10.</td>
+    <td>Jashim</td>
+    <td>Exztasi (feat. KIDDEIN)</td>
+    <td style="width: 40px; text-align: right;">4:02</td>
+  </tr>
+</table>
+</center>
+    <h>
+  <br>
+Executive producer: Sinjin Hawke
+<br>
+<br>
+&copy VISCERAL VAULTS 2026 // VV007
+  <br>
+  <br>
+
+    </div>
+    </h>
+
+  <br>
+      </div>
+
+      <center>
+        <!-- the private stream goes here, as on Ten Billion Angels' page (a SoundCloud player), once there is a link -->
+
+        <br><br>
+        <img width="70%" src="img/press-1.jpg"> <br><br><br>
+        <img width="70%" src="img/press-2.jpg"> <br><br><br>
+        <img width="70%" src="img/press-3.jpg"> <br><br><br>
+        <img width="70%" src="img/press-4.jpg"> <br><br><br>
+        <img width="70%" src="img/press-5.jpg"> <br><br><br>
+        <img width="70%" src="img/press-6.jpg"> <br><br><br>
+        <img width="70%" src="img/press-7.jpg"> <br><br><br>
+        <img width="70%" src="img/press-8.jpg"> <br><br><br>
+      </center>
+
+        <!-- the album in the site's player; its download button opens the album's link -->
+        <script src="https://fractalfantasy.net/libs/ffplayer/ffplayer-unified.js"></script>
+        <script>
+          var songs = ['01-yo-se', '02-explosion-del-corazon', '03-llueven-balas-en-el-club', '04-gistro', '05-volver-por-mi',
+            '06-la-sigo', '07-para-maria', '08-loup-garou', '09-con-migo', '10-exztasi'];
+          var ffplayer = new FFPlayer({
+            title: 'JASHIM',
+            artist: 'Jashim',
+            description: 'Visceral Vaults',
+            mode: 'audio playlist',
+            src: songs.map(function (s) { return 'https://media.fractalfantasy.net/jashim/' + s + '.mp3'; }),
+            songTitle: ['Yo Sé', 'Explosión del Corazón (feat. vskz)', 'Llueven Balas en el Club', 'Gistro (feat. Moonstar)', 'Volver por Mí',
+              'La Sigo', 'Para Maria (feat. Sinjin Hawke)', 'Loup-Garou', 'Con Migo (feat. Xlow)', 'Exztasi (feat. KIDDEIN)'],
+            download: true,
+            downloadLink: 'https://visceralvaults.lnk.to/YoSe',
+            link: true,
+            volume: true,
+            loop: true,
+          });
+          // a song in the tracklist plays when clicked
+          document.querySelectorAll('.tracklist tr[data-song]').forEach(function (row) {
+            row.addEventListener('click', function () { ffplayer.playSong(Number(row.dataset.song)); });
+          });
+        </script>
+
+        <!-- three.js r186 (WebGPU, WebGL 2 fallback) from fractalfantasy.net; the sparkles: sparkles.js (a copy) -->
+        <script>var isMobile = /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent);</script>
+        <script type="importmap">{ "imports": { "three": "https://fractalfantasy.net/libs/three/build/three.webgpu.js", "three/webgpu": "https://fractalfantasy.net/libs/three/build/three.webgpu.js", "three/tsl": "https://fractalfantasy.net/libs/three/build/three.tsl.js", "three/addons/": "https://fractalfantasy.net/libs/three/addons/" } }</script>
+        <script type="module" src="https://fractalfantasy.net/libs/three/legacy-global.js"></script>
+        <script type="text/x-after-three" src="sparkles.js"></script>
+</body>
+    </html>
