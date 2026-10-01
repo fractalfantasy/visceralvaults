@@ -76,6 +76,17 @@
 
         /* the two singles, side by side */
         body { padding-bottom: 90px; } /* room for the player bar */
+
+        /* a back button at the left of the player bar, as on Waterball: the next arrow turned around;
+           play, next, the progress and the credits move over to make room */
+        .ffplayer .back { position: fixed; left: 0; bottom: 0; width: 45px; height: 60px; border: none; outline: none; cursor: pointer;
+          background: black url('https://fractalfantasy.net/libs/ffplayer/img/fwd.svg') no-repeat center; transform: rotate(180deg);
+          z-index: 100000001; }
+        .ffplayer .back:hover { opacity: 0.7; }
+        .ffplayer .back:active { opacity: 0.2; }
+        .ffplayer #pButton { left: 30px; }
+        .ffplayer .next { left: 75px; }
+        .ffplayer-playlist #timeline, .ffplayer-playlist #credits { left: 120px; }
         .tracklist tr[data-song] { cursor: pointer; }
         .tracklist tr[data-song]:hover { color: #aaa; }
         .tracklist { color: white; font-family: Arial, Helvetica, sans-serif; font-size: 12px; text-align: left; }
@@ -227,6 +238,13 @@ Executive producer: Sinjin Hawke
             volume: true,
             loop: true,
           });
+          // the back button (the shared player has only next)
+          var back = document.createElement('button');
+          back.className = 'back';
+          back.setAttribute('aria-label', 'Previous');
+          back.addEventListener('click', function () { ffplayer.previousSong(); });
+          document.getElementById('ffplayer').prepend(back);
+
           // the cover as wide as the stretched title
           function fitCover() {
             document.querySelector('.cover').style.width = document.querySelector('.title span').getBoundingClientRect().width + 'px';
