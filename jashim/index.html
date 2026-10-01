@@ -71,6 +71,8 @@
           text-align: center;
         }
         .title span { display: inline-block; transform: scaleX(1.5); }
+        /* the cover is as wide as the stretched title (made exact once the font is in, below) */
+        .cover { width: calc(min(12vw, 147px) * 4.66); max-width: 100%; }
 
         /* the two singles, side by side */
         body { padding-bottom: 90px; } /* room for the player bar */
@@ -90,7 +92,7 @@
         <div class="container">
         <div class="column">
     <center>
-		  <img width="100%" src="img/jashim-cover.jpg"> <br><br>
+		  <img class="cover" src="img/jashim-cover.jpg"> <br><br>
 		  <div class="title"><span>JASHIM</span></div> <br><br>
 		</center>
     JASHIM releases his self-titled debut album ‘JASHIM’, an exploration of courtship and love in Montreal’s latinx underground.
@@ -225,6 +227,13 @@ Executive producer: Sinjin Hawke
             volume: true,
             loop: true,
           });
+          // the cover as wide as the stretched title
+          function fitCover() {
+            document.querySelector('.cover').style.width = document.querySelector('.title span').getBoundingClientRect().width + 'px';
+          }
+          document.fonts.ready.then(fitCover);
+          addEventListener('resize', fitCover);
+
           // a song in the tracklist plays when clicked
           document.querySelectorAll('.tracklist tr[data-song]').forEach(function (row) {
             row.addEventListener('click', function () { ffplayer.playSong(Number(row.dataset.song)); });
