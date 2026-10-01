@@ -74,6 +74,11 @@
         /* the cover is as wide as the stretched title (made exact once the font is in, below) */
         .cover { width: calc(min(12vw, 147px) * 4.66); max-width: 100%; }
 
+        /* the press pictures: rows of one height, widths by each picture's shape (set below) */
+        .press { width: 70%; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
+        .press .row { display: flex; gap: 10px; }
+        .press img { display: block; flex: 1 1 0; width: 0; min-width: 0; height: auto; }
+
         /* the two singles, side by side */
         body { padding-bottom: 90px; } /* room for the player bar */
 
@@ -209,14 +214,16 @@ Executive producer: Sinjin Hawke
         <!-- the private stream goes here, as on Ten Billion Angels' page (a SoundCloud player), once there is a link -->
 
         <br><br>
-        <img width="70%" src="img/press-1.jpg"> <br><br><br>
-        <img width="70%" src="img/press-2.jpg"> <br><br><br>
-        <img width="70%" src="img/press-3.jpg"> <br><br><br>
-        <img width="70%" src="img/press-4.jpg"> <br><br><br>
-        <img width="70%" src="img/press-5.jpg"> <br><br><br>
-        <img width="70%" src="img/press-6.jpg"> <br><br><br>
-        <img width="70%" src="img/press-7.jpg"> <br><br><br>
-        <img width="70%" src="img/press-8.jpg"> <br><br><br>
+        <!-- the press pictures, editorial: each row one height, as wide as the text; a picture's width
+             follows its shape, so a row takes any mix (add an <img> to a row, or a new row) -->
+        <div class="press">
+          <div class="row"><img src="img/press-4.jpg"></div>
+          <div class="row"><img src="img/press-1.jpg"><img src="img/press-2.jpg"></div>
+          <div class="row"><img src="img/press-6.jpg"><img src="img/press-3.jpg"></div>
+          <div class="row"><img src="img/press-8.jpg"><img src="img/press-5.jpg"></div>
+          <div class="row"><img src="img/press-7.jpg"></div>
+        </div>
+        <br><br><br>
       </center>
 
         <!-- the album in the site's player; its download button opens the album's link -->
@@ -251,6 +258,12 @@ Executive producer: Sinjin Hawke
           }
           document.fonts.ready.then(fitCover);
           addEventListener('resize', fitCover);
+
+          // each press picture takes room in its row by its shape (wide ones wider), so a row has one height
+          document.querySelectorAll('.press img').forEach(function (img) {
+            function fit() { img.style.flexGrow = img.naturalWidth / img.naturalHeight; }
+            if (img.complete && img.naturalWidth) fit(); else img.addEventListener('load', fit);
+          });
 
           // a song in the tracklist plays when clicked
           document.querySelectorAll('.tracklist tr[data-song]').forEach(function (row) {
