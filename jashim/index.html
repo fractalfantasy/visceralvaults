@@ -242,6 +242,14 @@ Executive producer: Sinjin Hawke
             volume: true,
             loop: true,
           });
+          // the button on the right opens the album's link (stores, pre-save), so a link icon, not download
+          var linkButton = document.getElementById('downloadButton');
+          if (linkButton) {
+            linkButton.querySelector('img').src = 'img/link.svg';
+            linkButton.setAttribute('aria-label', 'Listen and pre-save');
+            linkButton.title = 'Listen and pre-save';
+          }
+
           // the back button (the shared player has only next)
           var back = document.createElement('button');
           back.className = 'back';
