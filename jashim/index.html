@@ -72,10 +72,18 @@
         /* a back button at the left of the player bar, as on Waterball: the next arrow turned around;
            play, next, the progress and the credits move over to make room */
         .ffplayer .back { position: fixed; left: 0; bottom: 0; width: 45px; height: 60px; border: none; outline: none; cursor: pointer;
-          background: black url('https://fractalfantasy.net/libs/ffplayer/img/fwd.svg') no-repeat center; transform: rotate(180deg);
+          background: url('https://fractalfantasy.net/libs/ffplayer/img/fwd.svg') no-repeat center; transform: rotate(180deg);
           z-index: 100000001; }
         .ffplayer .back:hover { opacity: 0.7; }
-        #timeline { background: #2d5e7d; } /* the player's progress, in the album art's blue */
+        /* the player in the single art's colours: icy white bar, pale blue progress, deep teal text.
+           The buttons' icons are white images: invert(1) turns them dark, and turns the background
+           #190502 into the bar's #e6fafd */
+        #audioplayer { background-color: #e6fafd; border-top: 1px solid #a0c8d6; }
+        #timeline { background: #a0c8d6; }
+        #credits, #credits a:link, #credits a:visited { color: #03273b; }
+        .ffplayer #pButton, .ffplayer .next, .ffplayer .back { background-color: #190502; filter: invert(1); }
+        #volumeContainer { background-color: #e6fafd; border-left-color: #a0c8d6; }
+        .download-icn, .volume-icn, .embed-icn { filter: invert(1); }
         .ffplayer .back:active { opacity: 0.2; }
         .ffplayer #pButton { left: 30px; }
         .ffplayer .next { left: 75px; }
