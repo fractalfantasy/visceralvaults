@@ -242,12 +242,12 @@ Executive producer: Sinjin Hawke
             volume: true,
             loop: true,
           });
-          // the button on the right opens the album's link (stores, pre-save), so a link icon, not download
+          // the button on the right opens the album's link (stores, pre-save): a cart, as SoundCloud marks buy links
           var linkButton = document.getElementById('downloadButton');
           if (linkButton) {
-            linkButton.querySelector('img').src = 'img/link.svg';
-            linkButton.setAttribute('aria-label', 'Listen and pre-save');
-            linkButton.title = 'Listen and pre-save';
+            linkButton.querySelector('img').src = 'img/cart.svg';
+            linkButton.setAttribute('aria-label', 'Buy and stream');
+            linkButton.title = 'Buy and stream';
           }
 
           // the back button (the shared player has only next)
