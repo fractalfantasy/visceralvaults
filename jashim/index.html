@@ -8,10 +8,6 @@
         <link rel="stylesheet" href="https://fractalfantasy.net/libs/ffplayer/ffplayer-unified.css">
         <style type="text/css">
 
-        @font-face {
-          font-family: 'FFImpact';
-          src: url('https://fractalfantasy.net/signature/impact.woff') format('woff'), url('https://fractalfantasy.net/signature/impact.ttf') format('truetype');
-        }
         h {
           font-style:Arial;
           font-size: 8;
@@ -60,19 +56,10 @@
           text-align: center;
         }
 
-        /* the album title, drawn as Ten Billion Angels' title image is: outlined Impact */
-        .title {
-          font-family: 'FFImpact', Impact, sans-serif;
-          font-size: min(9vw, 110px); /* stretched 200% wide: about as wide as the column, like the TBA title image */
-          line-height: 1;
-          letter-spacing: 4px;
-          color: transparent;
-          -webkit-text-stroke: 0.018em white; /* 2px at the full 110px size: the outline scales with the title */
-          text-align: center;
-        }
-        .title span { display: inline-block; transform: scaleX(2); }
-        /* the cover is as wide as the stretched title (made exact once the font is in, below) */
-        .cover { width: calc(min(9vw, 110px) * 6.21); max-width: 100%; }
+        /* the album title, as Ten Billion Angels has a title image: Impact stretched 200%, outlined
+           after the stretch (img/jashim-title.svg); the cover is as wide */
+        .title { display: block; margin: 0 auto; }
+        .cover, .title { width: min(57vw, 700px); max-width: 100%; }
 
         /* the press pictures: rows of one height, widths by each picture's shape (set below) */
         .press { width: 70%; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
@@ -110,7 +97,7 @@
         <div class="column">
     <center>
 		  <img class="cover" src="img/jashim-cover.jpg"> <br><br>
-		  <div class="title"><span>JASHIM</span></div> <br><br>
+		  <img class="title" src="img/jashim-title.svg" alt="JASHIM"> <br><br>
 		</center>
     JASHIM releases his self-titled debut album ‘JASHIM’, an exploration of courtship and love in Montreal’s latinx underground.
         <br>
@@ -250,13 +237,6 @@ Executive producer: Sinjin Hawke
           back.setAttribute('aria-label', 'Previous');
           back.addEventListener('click', function () { ffplayer.previousSong(); });
           document.getElementById('ffplayer').prepend(back);
-
-          // the cover as wide as the stretched title
-          function fitCover() {
-            document.querySelector('.cover').style.width = document.querySelector('.title span').getBoundingClientRect().width + 'px';
-          }
-          document.fonts.ready.then(fitCover);
-          addEventListener('resize', fitCover);
 
           // each press picture takes room in its row by its shape (wide ones wider), so a row has one height
           document.querySelectorAll('.press img').forEach(function (img) {
