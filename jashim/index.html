@@ -63,16 +63,16 @@
         /* the album title, drawn as Ten Billion Angels' title image is: outlined Impact */
         .title {
           font-family: 'FFImpact', Impact, sans-serif;
-          font-size: min(12vw, 147px); /* stretched 150% wide: about as wide as the column, like the TBA title image */
+          font-size: min(9vw, 110px); /* stretched 200% wide: about as wide as the column, like the TBA title image */
           line-height: 1;
           letter-spacing: 4px;
           color: transparent;
-          -webkit-text-stroke: 2px white;
+          -webkit-text-stroke: 0.018em white; /* 2px at the full 110px size: the outline scales with the title */
           text-align: center;
         }
-        .title span { display: inline-block; transform: scaleX(1.5); }
+        .title span { display: inline-block; transform: scaleX(2); }
         /* the cover is as wide as the stretched title (made exact once the font is in, below) */
-        .cover { width: calc(min(12vw, 147px) * 4.66); max-width: 100%; }
+        .cover { width: calc(min(9vw, 110px) * 6.21); max-width: 100%; }
 
         /* the press pictures: rows of one height, widths by each picture's shape (set below) */
         .press { width: 70%; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
