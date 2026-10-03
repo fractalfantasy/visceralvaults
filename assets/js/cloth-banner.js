@@ -1,5 +1,5 @@
 import * as THREE from "three/webgpu";
-import { bloom } from "three/addons/tsl/display/BloomNode.js";
+import { bloom } from "./bloom-node.js?v=1";
 import { GUI } from "dat.gui";
 import { Cloth } from "./cloth.js?v=1";
 import { VerletCloth } from "./verlet-cloth.js?v=7";
@@ -797,7 +797,14 @@ async function init() {
   const BLOOM_STRENGTH = 1;
   const BLOOM_RADIUS = 0.41;
   const BLOOM_THRESHOLD = 0.85;
-  const bloomPass = bloom(sceneColor, BLOOM_STRENGTH, BLOOM_RADIUS, BLOOM_THRESHOLD);
+  // HDR clamped before the bloom (brightest channel at most 8, hue kept), as clothgyal does, so a
+  // few very hot specular pixels can't swamp it
+  const bloomInput = THREE.Fn(() => {
+    const c = THREE.max(sceneColor.rgb, THREE.vec3(0.0));
+    const l = THREE.max(THREE.max(c.r, c.g), c.b);
+    return THREE.vec4(c.mul(THREE.min(THREE.float(8.0).div(THREE.max(l, 1e-6)), 1.0)), 1.0);
+  })();
+  const bloomPass = bloom(bloomInput, BLOOM_STRENGTH, BLOOM_RADIUS, BLOOM_THRESHOLD);
   const bloomOutputNode = sceneColor.add(bloomPass);
   postProcessing.outputNode = BLOOM_STRENGTH > 0 ? bloomOutputNode : sceneColor;
 
