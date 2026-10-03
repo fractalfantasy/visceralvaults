@@ -19,16 +19,6 @@ async function loadReleases() {
 }
 
 function releaseCardHTML(r) {
-  // a release with its own page (e.g. JASHIM's press page) links there instead of opening the modal
-  if (r.page) {
-    return `
-    <a class="release-card" href="${r.page}">
-      <img src="${r.cover}" alt="${r.title} cover art" loading="lazy">
-      <p class="r-title">${r.title}</p>
-      <p class="r-artist">${r.artist}</p>
-    </a>
-  `;
-  }
   return `
     <button class="release-card" data-id="${r.id}">
       <img src="${r.cover}" alt="${r.title} cover art" loading="lazy">
@@ -36,6 +26,36 @@ function releaseCardHTML(r) {
       <p class="r-artist">${r.artist}</p>
     </button>
   `;
+}
+
+// A release that isn't on Bandcamp yet (JASHIM) plays its own files: the tracklist, click a song to
+// play it (again to pause), and it moves on to the next one.
+function trackPlayer(container, release) {
+  container.innerHTML = `
+    <ol class="tracklist">
+      ${release.tracks.map((t, i) => `
+        <li><button class="track" data-i="${i}">
+          <span class="t-num">${i + 1}</span><span class="t-title">${t}</span><span class="t-len">${release.lengths?.[i] ?? ""}</span>
+        </button></li>`).join("")}
+    </ol>
+  `;
+  const audio = new Audio();
+  audio.preload = "none";
+  const rows = [...container.querySelectorAll(".track")];
+  let current = -1;
+  const show = () => rows.forEach((r, i) => {
+    r.classList.toggle("current", i === current);
+    r.classList.toggle("playing", i === current && !audio.paused);
+  });
+  const play = (i) => {
+    if (i !== current) { current = i; audio.src = release.audio[i]; }
+    audio.play().catch(() => {});
+  };
+  rows.forEach((r, i) => r.addEventListener("click", () => (i === current && !audio.paused ? audio.pause() : play(i))));
+  audio.addEventListener("play", show);
+  audio.addEventListener("pause", show);
+  audio.addEventListener("ended", () => { if (current + 1 < release.audio.length) play(current + 1); else { current = -1; show(); } });
+  container.stop = () => { audio.pause(); audio.removeAttribute("src"); };
 }
 
 function openModal(release) {
@@ -73,10 +93,17 @@ function openModal(release) {
         </a>
       `
     )
+    .join("") + (release.links || [])
+    .map((l) => `<a class="text-link" href="${l.href}"${/^https?:/.test(l.href) ? ' target="_blank" rel="noopener"' : ""}>${l.label}</a>`)
     .join("");
 
-  const playerHeight = 120 + release.tracks.length * 48;
   const player = overlay.querySelector(".modal-player");
+  if (release.audio) {
+    trackPlayer(player, release);
+    overlay.classList.add("open");
+    return;
+  }
+  const playerHeight = 120 + release.tracks.length * 48;
   player.innerHTML = `
     <iframe
       style="border: 0; width: 100%; height: ${playerHeight}px;"
@@ -93,7 +120,11 @@ function closeModal() {
   const overlay = document.querySelector(".modal-overlay");
   overlay?.classList.remove("open");
   const player = overlay?.querySelector(".modal-player");
-  if (player) player.innerHTML = ""; // stop playback
+  if (player) {
+    player.stop?.(); // a detached <audio> would keep playing
+    player.stop = null;
+    player.innerHTML = ""; // stop playback
+  }
 }
 
 function initReleaseGrid(releases, gridSelector) {

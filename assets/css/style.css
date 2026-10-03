@@ -212,11 +212,6 @@ main.wrap.open {
   font: inherit;
 }
 
-a.release-card {
-  display: block;
-  text-decoration: none;
-}
-
 .release-card img {
   width: 100%;
   aspect-ratio: 1 / 1;
@@ -352,6 +347,60 @@ a.release-card {
   width: 18px;
   height: 18px;
 }
+
+.text-link {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 18px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  color: var(--fg);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.text-link:hover {
+  border-color: var(--fg-dim);
+  transform: translateY(-2px);
+}
+
+/* a release's own tracklist player (one not on Bandcamp yet) */
+.tracklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+}
+
+.track {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 0;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--fg);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.track .t-num,
+.track .t-len { color: var(--fg-dim); font-variant-numeric: tabular-nums; }
+.track:hover .t-title { text-decoration: underline; }
+.track.current .t-title { font-weight: 700; }
+.track.playing .t-num { font-size: 0; }
+.track.playing .t-num::before { content: "❚❚"; font-size: 10px; color: var(--fg); }
+.track.current:not(.playing) .t-num { font-size: 0; }
+.track.current:not(.playing) .t-num::before { content: "▶"; font-size: 11px; color: var(--fg); }
 
 /* ---------- responsive ---------- */
 
