@@ -55,7 +55,15 @@
 
 <script src="assets/js/main.js?v=5"></script>
 <script>
-  loadReleases().then((releases) => initReleaseGrid(releases, "#release-grid"));
+  loadReleases().then((releases) => {
+    initReleaseGrid(releases, "#release-grid");
+    // a link to a release (e.g. /#jashim, where /jashim sends people) opens the grid and its pop-up
+    const linked = releases.find((r) => "#" + r.id === location.hash);
+    if (linked) {
+      document.getElementById("releases-cta")?.click();
+      openModal(linked);
+    }
+  });
 
   const releasesCta = document.getElementById("releases-cta");
   const mainWrap = document.querySelector("main.wrap");
