@@ -212,6 +212,11 @@ main.wrap.open {
   font: inherit;
 }
 
+a.release-card {
+  display: block;
+  text-decoration: none;
+}
+
 .release-card img {
   width: 100%;
   aspect-ratio: 1 / 1;

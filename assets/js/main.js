@@ -19,6 +19,16 @@ async function loadReleases() {
 }
 
 function releaseCardHTML(r) {
+  // a release with its own page (e.g. JASHIM's press page) links there instead of opening the modal
+  if (r.page) {
+    return `
+    <a class="release-card" href="${r.page}">
+      <img src="${r.cover}" alt="${r.title} cover art" loading="lazy">
+      <p class="r-title">${r.title}</p>
+      <p class="r-artist">${r.artist}</p>
+    </a>
+  `;
+  }
   return `
     <button class="release-card" data-id="${r.id}">
       <img src="${r.cover}" alt="${r.title} cover art" loading="lazy">
