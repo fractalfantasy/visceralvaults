@@ -29,12 +29,14 @@ function releaseCardHTML(r) {
 }
 
 // A release that isn't on Bandcamp yet (JASHIM) plays its own files: the tracklist, click a song to
-// play it (again to pause), and it moves on to the next one.
+// play it (again to pause), and it moves on to the next one. If `playable` lists track indexes, only
+// those play (the singles out so far); the rest are greyed out.
 function trackPlayer(container, release) {
+  const canPlay = (i) => !release.playable || release.playable.includes(i);
   container.innerHTML = `
     <ol class="tracklist">
       ${release.tracks.map((t, i) => `
-        <li><button class="track" data-i="${i}">
+        <li><button class="track" data-i="${i}"${canPlay(i) ? "" : " disabled"}>
           <span class="t-num">${i + 1}</span><span class="t-title">${t}</span><span class="t-len">${release.lengths?.[i] ?? ""}</span>
         </button></li>`).join("")}
     </ol>
@@ -54,7 +56,10 @@ function trackPlayer(container, release) {
   rows.forEach((r, i) => r.addEventListener("click", () => (i === current && !audio.paused ? audio.pause() : play(i))));
   audio.addEventListener("play", show);
   audio.addEventListener("pause", show);
-  audio.addEventListener("ended", () => { if (current + 1 < release.audio.length) play(current + 1); else { current = -1; show(); } });
+  audio.addEventListener("ended", () => {
+    const next = release.audio.findIndex((_, i) => i > current && canPlay(i));
+    if (next >= 0) play(next); else { current = -1; show(); }
+  });
   container.stop = () => { audio.pause(); audio.removeAttribute("src"); };
 }
 

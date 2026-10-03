@@ -8,6 +8,7 @@
     "cover": "assets/img/covers/jashim.jpg",
     "links": [{ "label": "Pre-save", "href": "https://visceralvaults.lnk.to/YoSe" }, { "label": "Press", "href": "jashim/" }],
     "audio": ["https://media.fractalfantasy.net/jashim/01-yo-se.mp3", "https://media.fractalfantasy.net/jashim/02-explosion-del-corazon.mp3", "https://media.fractalfantasy.net/jashim/03-llueven-balas-en-el-club.mp3", "https://media.fractalfantasy.net/jashim/04-gistro.mp3", "https://media.fractalfantasy.net/jashim/05-volver-por-mi.mp3", "https://media.fractalfantasy.net/jashim/06-la-sigo.mp3", "https://media.fractalfantasy.net/jashim/07-para-maria.mp3", "https://media.fractalfantasy.net/jashim/08-loup-garou.mp3", "https://media.fractalfantasy.net/jashim/09-con-migo.mp3", "https://media.fractalfantasy.net/jashim/10-exztasi.mp3"],
+    "playable": [0],
     "lengths": ["2:40", "3:26", "3:17", "2:40", "2:11", "3:03", "4:14", "3:13", "2:44", "4:02"],
     "tracks": ["Yo Sé", "Explosión del Corazón (feat. vskz)", "Llueven Balas en el Club", "Gistro (feat. Moonstar)", "Volver por Mí", "La Sigo", "Para Maria (feat. Sinjin Hawke)", "Loup-Garou", "Con Migo (feat. Xlow)", "Exztasi (feat. KIDDEIN)"]
   },

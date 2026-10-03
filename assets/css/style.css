@@ -395,7 +395,8 @@ main.wrap.open {
 
 .track .t-num,
 .track .t-len { color: var(--fg-dim); font-variant-numeric: tabular-nums; }
-.track:hover .t-title { text-decoration: underline; }
+.track:hover:not(:disabled) .t-title { text-decoration: underline; }
+.track:disabled { cursor: default; opacity: 0.35; }
 .track.current .t-title { font-weight: 700; }
 .track.playing .t-num { font-size: 0; }
 .track.playing .t-num::before { content: "❚❚"; font-size: 10px; color: var(--fg); }
