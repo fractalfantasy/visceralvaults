@@ -226,6 +226,7 @@ Executive producer: Sinjin Hawke
         <!-- the album in the site's player; its download button opens the album's link -->
         <script src="https://fractalfantasy.net/libs/ffplayer/ffplayer-unified.js"></script>
         <script>
+          var versions = { '03-llueven-balas-en-el-club': '?v=2' }; // Llueven Balas: the M3 master (Oct 3)
           var songs = ['01-yo-se', '02-explosion-del-corazon', '03-llueven-balas-en-el-club', '04-gistro', '05-volver-por-mi',
             '06-la-sigo', '07-para-maria', '08-loup-garou', '09-con-migo', '10-exztasi'];
           var ffplayer = new FFPlayer({
@@ -233,7 +234,8 @@ Executive producer: Sinjin Hawke
             artist: 'Jashim',
             description: 'Visceral Vaults',
             mode: 'audio playlist',
-            src: songs.map(function (s) { return 'https://media.fractalfantasy.net/jashim/' + s + '.mp3'; }),
+            // ?v=2: a song whose file was replaced (a new master), so browsers don't play their old copy
+            src: songs.map(function (s) { return 'https://media.fractalfantasy.net/jashim/' + s + '.mp3' + (versions[s] || ''); }),
             songTitle: ['Yo Sé', 'Explosión del Corazón (feat. vskz)', 'Llueven Balas en el Club', 'Gistro (feat. Moonstar)', 'Volver por Mí',
               'La Sigo', 'Para Maria (feat. Sinjin Hawke)', 'Loup-Garou', 'Con Migo (feat. Xlow)', 'Exztasi (feat. KIDDEIN)'],
             download: true,
