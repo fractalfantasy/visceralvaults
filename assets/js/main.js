@@ -28,42 +28,86 @@ function releaseCardHTML(r) {
   `;
 }
 
-// A release's player: its tracklist, playing its own files (on media.fractalfantasy.net); click a song to
-// play it (again to pause), and it moves on to the next one. Before the release date, only the songs
-// in `singles` (track index -> its release date) play, each from its date on, by the visitor's own
-// calendar; the rest are greyed out until the release date.
-function trackPlayer(container, release) {
+// Before a release's date, only the songs in `singles` (track index -> its release date) play, each from
+// its date on, by the visitor's own calendar; the rest are greyed out until the release date.
+function canPlay(release, i) {
   const d = new Date();
   const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  const canPlay = (i) => !release.singles || today >= release.date || (release.singles[i] ?? "9999") <= today;
+  return !release.singles || today >= release.date || (release.singles[i] ?? "9999") <= today;
+}
+
+// The player bar at the bottom of the page (fractalfantasy.net's FFPlayer), holding one release's
+// playable songs at a time: a song clicked in another release's pop-up rebuilds it for that release.
+let bar = null; // { player, release, indexes: the release's track index for each of the bar's songs }
+
+const PLATFORMS = [
+  { key: "spotify", label: "Spotify" },
+  { key: "appleMusic", label: "Apple Music" },
+  { key: "youtube", label: "YouTube" },
+  { key: "bandcamp", label: "Bandcamp" },
+];
+
+function barFor(release) {
+  if (bar?.release === release) return bar;
+  if (typeof FFPlayer === "undefined") return null;
+  bar?.player.destroy();
+  const indexes = release.tracks.map((_, i) => i).filter((i) => canPlay(release, i));
+  // the link button: the release's stores, and its own links (e.g. pre-save)
+  const links = PLATFORMS.filter((p) => release[p.key]).map((p) => [p.label, release[p.key]])
+    .concat((release.links || []).map((l) => [l.label, l.href]));
+  const player = new FFPlayer({
+    title: release.title,
+    artist: release.artist,
+    description: "Visceral Vaults",
+    mode: "audio playlist",
+    src: indexes.map((i) => release.audio[i]),
+    songTitle: indexes.map((i) => release.tracks[i]),
+    download: links.length > 0,
+    links,
+    volume: true,
+  });
+  // a back button (the shared player has only next), as on the press page
+  const back = document.createElement("button");
+  back.className = "back";
+  back.setAttribute("aria-label", "Previous");
+  back.addEventListener("click", () => player.previousSong());
+  player.container.prepend(back);
+  for (const type of ["play", "pause", "emptied", "loadstart"]) player.song.addEventListener(type, showPlaying);
+  bar = { player, release, indexes };
+  showPlaying();
+  return bar;
+}
+
+// the open pop-up's tracklist shows the bar's song (bold), and whether it's playing
+function showPlaying() {
+  const list = document.querySelector(".modal-player .tracklist");
+  if (!list) return;
+  const here = bar && bar.release.id === list.dataset.id;
+  const current = here ? bar.indexes[bar.player.currentPlaylistIndex] : -1;
+  list.querySelectorAll(".track").forEach((row, i) => {
+    row.classList.toggle("current", i === current);
+    row.classList.toggle("playing", i === current && !bar.player.song.paused);
+  });
+}
+
+// A release's tracklist in its pop-up: click a song to play it in the bar (again to pause).
+function trackPlayer(container, release) {
   container.innerHTML = `
-    <ol class="tracklist">
+    <ol class="tracklist" data-id="${release.id}">
       ${release.tracks.map((t, i) => `
-        <li><button class="track" data-i="${i}"${canPlay(i) ? "" : " disabled"}>
+        <li><button class="track" data-i="${i}"${canPlay(release, i) ? "" : " disabled"}>
           <span class="t-num">${i + 1}</span><span class="t-title">${t}</span><span class="t-len">${release.lengths?.[i] ?? ""}</span>
         </button></li>`).join("")}
     </ol>
   `;
-  const audio = new Audio();
-  audio.preload = "none";
-  const rows = [...container.querySelectorAll(".track")];
-  let current = -1;
-  const show = () => rows.forEach((r, i) => {
-    r.classList.toggle("current", i === current);
-    r.classList.toggle("playing", i === current && !audio.paused);
-  });
-  const play = (i) => {
-    if (i !== current) { current = i; audio.src = release.audio[i]; }
-    audio.play().catch(() => {});
-  };
-  rows.forEach((r, i) => r.addEventListener("click", () => (i === current && !audio.paused ? audio.pause() : play(i))));
-  audio.addEventListener("play", show);
-  audio.addEventListener("pause", show);
-  audio.addEventListener("ended", () => {
-    const next = release.audio.findIndex((_, i) => i > current && canPlay(i));
-    if (next >= 0) play(next); else { current = -1; show(); }
-  });
-  container.stop = () => { audio.pause(); audio.removeAttribute("src"); };
+  container.querySelectorAll(".track").forEach((row, i) => row.addEventListener("click", () => {
+    const b = barFor(release);
+    if (!b) return;
+    const song = b.indexes.indexOf(i);
+    if (song === b.player.currentPlaylistIndex && b.player.song.currentSrc === new URL(release.audio[i], location.href).href) b.player.togglePlay();
+    else b.player.playSong(song);
+  }));
+  showPlaying();
 }
 
 function openModal(release) {
@@ -85,14 +129,7 @@ function openModal(release) {
 
   overlay.querySelector(".modal-date").textContent = formatDate(release.date);
 
-  const platforms = [
-    { key: "spotify", label: "Spotify" },
-    { key: "appleMusic", label: "Apple Music" },
-    { key: "youtube", label: "YouTube" },
-    { key: "bandcamp", label: "Bandcamp" },
-  ];
-
-  overlay.querySelector(".modal-platforms").innerHTML = platforms
+  overlay.querySelector(".modal-platforms").innerHTML = PLATFORMS
     .filter((p) => release[p.key])
     .map(
       (p) => `
@@ -128,11 +165,7 @@ function closeModal() {
   const overlay = document.querySelector(".modal-overlay");
   overlay?.classList.remove("open");
   const player = overlay?.querySelector(".modal-player");
-  if (player) {
-    player.stop?.(); // a detached <audio> would keep playing
-    player.stop = null;
-    player.innerHTML = ""; // stop playback
-  }
+  if (player) player.innerHTML = ""; // a Bandcamp embed stops; the bar plays on
 }
 
 function initReleaseGrid(releases, gridSelector) {
