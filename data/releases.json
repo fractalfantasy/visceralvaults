@@ -24,7 +24,9 @@
     "appleMusic": "https://music.apple.com/us/album/ww4-single/1426591171",
     "youtube": "https://www.youtube.com/watch?v=VqmRQe831ns",
     "albumId": "4113307904",
-    "tracks": ["WW4", "WW4 (Famous Eno Remix)"]
+    "tracks": ["WW4", "WW4 (Famous Eno Remix)"],
+    "audio": ["https://media.fractalfantasy.net/visceralvaults/ww4/01-ww4.mp3", "https://media.fractalfantasy.net/visceralvaults/ww4/02-ww4-famous-eno-remix.mp3"],
+    "lengths": ["4:21", "4:11"]
   },
   {
     "id": "worst-vocal-dub",
@@ -38,7 +40,9 @@
     "appleMusic": "https://music.apple.com/us/album/worst-vocal-dub-single/1219680865",
     "youtube": "https://www.youtube.com/watch?v=yPK1fNKf63s",
     "albumId": "1054677423",
-    "tracks": ["Worst (Vocal Dub)"]
+    "tracks": ["Worst (Vocal Dub)"],
+    "audio": ["https://media.fractalfantasy.net/visceralvaults/worst-vocal-dub/01-worst-vocal-dub.mp3"],
+    "lengths": ["4:24"]
   },
   {
     "id": "yea-hoe-mixes",
@@ -57,7 +61,9 @@
       "Yea Hoe (Richelle \"Virtual Geisha\" Remix)",
       "Yea Hoe (Vjuan Allure Remix)",
       "Yea Hoe (Instrumental)"
-    ]
+    ],
+    "audio": ["https://media.fractalfantasy.net/visceralvaults/yea-hoe-mixes/01-yea-hoe-devils-daughter-mix.mp3", "https://media.fractalfantasy.net/visceralvaults/yea-hoe-mixes/02-yea-hoe-richelle-virtual-geisha-remix.mp3", "https://media.fractalfantasy.net/visceralvaults/yea-hoe-mixes/03-yea-hoe-vjuan-allure-remix.mp3", "https://media.fractalfantasy.net/visceralvaults/yea-hoe-mixes/04-yea-hoe-instrumental.mp3"],
+    "lengths": ["4:17", "3:07", "3:53", "4:22"]
   },
   {
     "id": "how-we-rock",
@@ -71,7 +77,9 @@
     "appleMusic": "https://music.apple.com/fr/album/how-we-rock-single/1222307023",
     "youtube": "https://www.youtube.com/watch?v=3OL0w4jpcIU",
     "albumId": "1654643876",
-    "tracks": ["How We Rock"]
+    "tracks": ["How We Rock"],
+    "audio": ["https://media.fractalfantasy.net/visceralvaults/how-we-rock/01-how-we-rock.mp3"],
+    "lengths": ["2:53"]
   },
   {
     "id": "one",
@@ -85,7 +93,9 @@
     "appleMusic": "https://music.apple.com/us/album/one-single/1218103643",
     "youtube": "https://www.youtube.com/watch?v=qdNDIA_6p6s",
     "albumId": "3471263512",
-    "tracks": ["One"]
+    "tracks": ["One"],
+    "audio": ["https://media.fractalfantasy.net/visceralvaults/one/01-one.mp3"],
+    "lengths": ["3:52"]
   },
   {
     "id": "yea-hoe",
@@ -99,6 +109,8 @@
     "appleMusic": "https://music.apple.com/fr/album/yea-hoe-single/1216548216",
     "youtube": "https://www.youtube.com/watch?v=BjW27AczBx8",
     "albumId": "3010357355",
-    "tracks": ["Yea Hoe"]
+    "tracks": ["Yea Hoe"],
+    "audio": ["https://media.fractalfantasy.net/visceralvaults/yea-hoe/01-yea-hoe.mp3"],
+    "lengths": ["4:22"]
   }
 ]
