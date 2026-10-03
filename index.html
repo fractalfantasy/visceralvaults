@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://fractalfantasy.net/libs/ffplayer/ffplayer-unified.css">
-<link rel="stylesheet" href="assets/css/style.css?v=30">
+<link rel="stylesheet" href="assets/css/style.css?v=32">
 <script type="importmap">
 {
   "imports": {
@@ -55,11 +55,11 @@
 </div>
 
 <script src="https://fractalfantasy.net/libs/ffplayer/ffplayer-unified.js"></script>
-<script src="assets/js/main.js?v=7"></script>
+<script src="assets/js/main.js?v=8"></script>
 <script>
   loadReleases().then((releases) => {
     initReleaseGrid(releases, "#release-grid");
-    barFor(releases[0]); // the player bar starts on the newest release
+    initBar(releases); // the player bar, starting on the newest release
     // a link to a release (e.g. /#jashim, where /jashim sends people) opens the grid and its pop-up
     const linked = releases.find((r) => "#" + r.id === location.hash);
     if (linked) {
@@ -93,7 +93,7 @@
     }
   });
 </script>
-<script type="module" src="assets/js/cloth-banner.js?v=62"></script>
+<script type="module" src="assets/js/cloth-banner.js?v=63"></script>
 
 </body>
 </html>

@@ -148,9 +148,9 @@ main.wrap.open {
    top-right float (the player bar has the bottom). */
 .dg.main {
   position: fixed !important;
-  top: 16px !important;
+  top: 42px !important;
   bottom: auto !important;
-  left: 16px !important;
+  left: 24px !important;
   right: auto !important;
   float: none !important;
   margin: 0 !important;
@@ -158,7 +158,7 @@ main.wrap.open {
      stays off in JS (see cloth-banner.js) and we drive scrolling ourselves
      here instead, capping the panel's height (clear of the player bar) and
      letting it scroll once enough folders are open to overflow the viewport. */
-  max-height: calc(100vh - 32px - 61px);
+  max-height: calc(100vh - 42px - 16px - 61px);
   overflow-y: auto !important;
   overflow-x: hidden !important;
 }
@@ -171,6 +171,42 @@ main.wrap.open {
 .dg.main .close-button.close-bottom {
   position: sticky !important;
   bottom: 0 !important;
+}
+
+/* The button itself ("Visual Controls"), in the Releases button's look: plain
+   text, spaced capitals, dim until hovered, rather than dat.gui's black bar. */
+.dg.main .close-button {
+  height: auto !important;
+  padding: 4px 0 !important;
+  line-height: 20px !important;
+  background: transparent !important;
+  border: 0 !important;
+  text-align: left !important;
+  color: var(--fg) !important;
+  font-family: var(--font-body) !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  letter-spacing: 2px !important;
+  text-transform: uppercase !important;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  opacity: 0.7;
+  transition: opacity 0.15s ease;
+}
+
+.dg.main .close-button:hover {
+  opacity: 1;
+}
+
+/* on a phone, above Releases rather than beside it (they'd overlap) */
+@media (max-width: 600px) {
+  .dg.main {
+    top: 10px !important;
+    left: 50% !important;
+    transform: translateX(-50%);
+    max-height: calc(100vh - 10px - 16px - 61px);
+  }
+
+  .dg.main .close-button { text-align: center !important; }
 }
 
 /* dat.gui sizes its own rows in pixels assuming the browser default
@@ -254,7 +290,7 @@ main.wrap.open {
   display: none;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: 24px 24px 84px; /* clear of the player bar (60px) */
   z-index: 100;
 }
 
@@ -266,7 +302,7 @@ main.wrap.open {
   border-radius: 8px;
   max-width: 80vw;
   width: 100%;
-  max-height: 90vh;
+  max-height: calc(100vh - 108px);
   overflow-y: auto;
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -436,7 +472,6 @@ main.wrap.open {
 /* above the pop-up's dimmed backdrop, so what's playing stays in view */
 #audioplayer { z-index: 101; }
 .ffplayer .next { z-index: 102; }
-.modal-overlay { padding-bottom: 85px; }
 
 /* black, its progress light; the credits blend (difference) so they read dark over the progress
    and light over the black. A back button (the next arrow turned around) at the left, as on the

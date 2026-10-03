@@ -498,6 +498,8 @@ async function init() {
   // that space reads as ~0 and the panel opens with no visible content. We
   // leave it off and drive the panel's scrolling ourselves in CSS instead
   // (see .dg.main in style.css).
+  GUI.TEXT_OPEN = "Visual Controls"; // the button's label while the panel is closed
+  GUI.TEXT_CLOSED = "Hide Visual Controls";
   const gui = new GUI({ scrollable: false });
 
   // Added directly to the root gui (not a folder) so it renders as its own

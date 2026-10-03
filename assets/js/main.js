@@ -21,7 +21,7 @@ async function loadReleases() {
 function releaseCardHTML(r) {
   return `
     <button class="release-card" data-id="${r.id}">
-      <img src="${r.cover}" alt="${r.title} cover art" loading="lazy">
+      <img src="${r.cover}" alt="${r.title} cover art" decoding="async">
       <p class="r-title">${r.title}</p>
       <p class="r-artist">${r.artist}</p>
     </button>
@@ -36,9 +36,11 @@ function canPlay(release, i) {
   return !release.singles || today >= release.date || (release.singles[i] ?? "9999") <= today;
 }
 
-// The player bar at the bottom of the page (fractalfantasy.net's FFPlayer), holding one release's
-// playable songs at a time: a song clicked in another release's pop-up rebuilds it for that release.
-let bar = null; // { player, release, indexes: the release's track index for each of the bar's songs }
+// The player bar at the bottom of the page (fractalfantasy.net's FFPlayer): one playlist of every
+// playable song, release after release in the grid's order, so it plays on from one release into the
+// next (and round again). One <audio> throughout, which phones let carry on without another tap.
+// The credits and the link button follow the release playing.
+let bar = null; // { player, entries: [{ release, i }] in playlist order, release: the one in the credits }
 
 const PLATFORMS = [
   { key: "spotify", label: "Spotify" },
@@ -47,24 +49,29 @@ const PLATFORMS = [
   { key: "bandcamp", label: "Bandcamp" },
 ];
 
-function barFor(release) {
-  if (bar?.release === release) return bar;
-  if (typeof FFPlayer === "undefined") return null;
-  bar?.player.destroy();
-  const indexes = release.tracks.map((_, i) => i).filter((i) => canPlay(release, i));
-  // the link button: the release's stores, and its own links (e.g. pre-save)
-  const links = PLATFORMS.filter((p) => release[p.key]).map((p) => [p.label, release[p.key]])
+// the link button's list: the release's stores, and its own links (e.g. pre-save)
+function releaseLinks(release) {
+  return PLATFORMS.filter((p) => release[p.key]).map((p) => [p.label, release[p.key]])
     .concat((release.links || []).map((l) => [l.label, l.href]));
+}
+
+function initBar(releases) {
+  if (typeof FFPlayer === "undefined") return;
+  const entries = releases.flatMap((release) => release.tracks.map((_, i) => ({ release, i })))
+    .filter(({ release, i }) => release.audio && canPlay(release, i));
+  if (!entries.length) return;
+  const first = entries[0].release;
   const player = new FFPlayer({
-    title: release.title,
-    artist: release.artist,
+    title: first.title,
+    artist: first.artist,
     description: "Visceral Vaults",
     mode: "audio playlist",
-    src: indexes.map((i) => release.audio[i]),
-    songTitle: indexes.map((i) => release.tracks[i]),
-    download: links.length > 0,
-    links,
+    src: entries.map(({ release, i }) => release.audio[i]),
+    songTitle: entries.map(({ release, i }) => release.tracks[i]),
+    download: true,
+    links: releaseLinks(first),
     volume: true,
+    loop: true,
   });
   // a back button (the shared player has only next), as on the press page
   const back = document.createElement("button");
@@ -72,21 +79,41 @@ function barFor(release) {
   back.setAttribute("aria-label", "Previous");
   back.addEventListener("click", () => player.previousSong());
   player.container.prepend(back);
+  bar = { player, entries, release: first };
+  player.addCallback("streamAudio", showRelease);
   for (const type of ["play", "pause", "emptied", "loadstart"]) player.song.addEventListener(type, showPlaying);
-  bar = { player, release, indexes };
   showPlaying();
-  return bar;
+}
+
+// the bar's credits and links: the release of the song it's on
+function showRelease() {
+  const { release } = bar.entries[bar.player.currentPlaylistIndex];
+  if (bar.release === release) return;
+  bar.release = release;
+  bar.player.container.querySelector("#playerTitle").textContent = release.title;
+  bar.player.container.querySelector("#playerArtist").textContent = release.artist;
+  const panel = bar.player.container.querySelector(".ffplayer-links");
+  if (panel) {
+    panel.replaceChildren(...releaseLinks(release).map(([label, href]) => {
+      const a = document.createElement("a");
+      a.href = href;
+      a.target = "_blank";
+      a.rel = "noopener";
+      a.textContent = label;
+      return a;
+    }));
+  }
 }
 
 // the open pop-up's tracklist shows the bar's song (bold), and whether it's playing
 function showPlaying() {
   const list = document.querySelector(".modal-player .tracklist");
-  if (!list) return;
-  const here = bar && bar.release.id === list.dataset.id;
-  const current = here ? bar.indexes[bar.player.currentPlaylistIndex] : -1;
+  if (!list || !bar) return;
+  const { release, i: current } = bar.entries[bar.player.currentPlaylistIndex];
   list.querySelectorAll(".track").forEach((row, i) => {
-    row.classList.toggle("current", i === current);
-    row.classList.toggle("playing", i === current && !bar.player.song.paused);
+    const on = release.id === list.dataset.id && i === current;
+    row.classList.toggle("current", on);
+    row.classList.toggle("playing", on && !bar.player.song.paused);
   });
 }
 
@@ -101,11 +128,11 @@ function trackPlayer(container, release) {
     </ol>
   `;
   container.querySelectorAll(".track").forEach((row, i) => row.addEventListener("click", () => {
-    const b = barFor(release);
-    if (!b) return;
-    const song = b.indexes.indexOf(i);
-    if (song === b.player.currentPlaylistIndex && b.player.song.currentSrc === new URL(release.audio[i], location.href).href) b.player.togglePlay();
-    else b.player.playSong(song);
+    if (!bar) return;
+    const entry = bar.entries.findIndex((e) => e.release === release && e.i === i);
+    if (entry < 0) return;
+    if (entry === bar.player.currentPlaylistIndex) bar.player.togglePlay();
+    else bar.player.playSong(entry);
   }));
   showPlaying();
 }
