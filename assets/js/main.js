@@ -28,11 +28,14 @@ function releaseCardHTML(r) {
   `;
 }
 
-// A release that isn't on Bandcamp yet (JASHIM) plays its own files: the tracklist, click a song to
-// play it (again to pause), and it moves on to the next one. If `playable` lists track indexes, only
-// those play (the singles out so far); the rest are greyed out.
+// A release's player: its tracklist, playing its own files (on media.fractalfantasy.net); click a song to
+// play it (again to pause), and it moves on to the next one. Before the release date, only the songs
+// in `singles` (track index -> its release date) play, each from its date on, by the visitor's own
+// calendar; the rest are greyed out until the release date.
 function trackPlayer(container, release) {
-  const canPlay = (i) => !release.playable || release.playable.includes(i);
+  const d = new Date();
+  const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const canPlay = (i) => !release.singles || today >= release.date || (release.singles[i] ?? "9999") <= today;
   container.innerHTML = `
     <ol class="tracklist">
       ${release.tracks.map((t, i) => `
