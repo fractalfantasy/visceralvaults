@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://fractalfantasy.net/libs/ffplayer/ffplayer-unified.css">
-<link rel="stylesheet" href="assets/css/style.css?v=33">
+<link rel="stylesheet" href="assets/css/style.css?v=36">
 <script type="importmap">
 {
   "imports": {
@@ -33,6 +33,23 @@
 
 <button class="hero-cta" id="releases-cta">Releases</button>
 
+<!-- the mailing list (Visceral Vaults' own, kept on fractalfantasy.net: /api/vv/subscribe), as
+     fractalfantasy.net's MAILING LIST: opens below its button -->
+<div class="subscribe">
+  <button class="corner-cta" id="subscribe-cta" aria-expanded="false" aria-controls="subscribe-form">Subscribe</button>
+  <form class="subscribe-form" id="subscribe-form" data-api="https://fractalfantasy.net/api/vv/subscribe" hidden novalidate>
+    <h2>MAILING LIST</h2>
+    <label class="news-line"><input type="checkbox" name="consent" required aria-label="opt in"> Opt in for updates from Visceral Vaults</label>
+    <div class="news-entry">
+      <input type="email" name="email" autocomplete="email" placeholder="Email" aria-label="Email address" required>
+      <button type="submit">Sign up</button>
+    </div>
+    <input type="hidden" name="source" value="visceralvaults.com">
+    <label class="trap" aria-hidden="true">Website <input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+    <p class="status" role="status" aria-live="polite"></p>
+  </form>
+</div>
+
 <main class="wrap">
   <section class="section">
     <div class="release-grid" id="release-grid"></div>
@@ -55,7 +72,7 @@
 </div>
 
 <script src="https://fractalfantasy.net/libs/ffplayer/ffplayer-unified.js"></script>
-<script src="assets/js/main.js?v=8"></script>
+<script src="assets/js/main.js?v=9"></script>
 <script>
   loadReleases().then((releases) => {
     initReleaseGrid(releases, "#release-grid");

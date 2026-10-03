@@ -144,21 +144,21 @@ main.wrap.open {
   z-index: 50 !important;
 }
 
-/* Move the panel itself to the top-left instead of dat.gui's default
-   top-right float (the player bar has the bottom). */
+/* The panel at the top right (Subscribe has the top left, the player bar
+   the bottom), level with Releases. */
 .dg.main {
   position: fixed !important;
-  top: 42px !important;
+  top: 44px !important;
   bottom: auto !important;
-  left: 24px !important;
-  right: auto !important;
+  left: auto !important;
+  right: 24px !important;
   float: none !important;
   margin: 0 !important;
   /* dat.gui's own "taller than window" auto-scroll (GUI({ scrollable }))
      stays off in JS (see cloth-banner.js) and we drive scrolling ourselves
      here instead, capping the panel's height (clear of the player bar) and
      letting it scroll once enough folders are open to overflow the viewport. */
-  max-height: calc(100vh - 42px - 16px - 61px);
+  max-height: calc(100vh - 44px - 16px - 61px);
   overflow-y: auto !important;
   overflow-x: hidden !important;
 }
@@ -185,7 +185,7 @@ main.wrap.open {
   line-height: 20px !important;
   background: transparent !important;
   border: 0 !important;
-  text-align: left !important;
+  text-align: right !important;
   color: var(--fg) !important;
   font-family: var(--font-body) !important;
   font-size: 13px !important;
@@ -205,12 +205,9 @@ main.wrap.open {
 @media (max-width: 600px) {
   .dg.main {
     top: 10px !important;
-    left: 50% !important;
-    transform: translateX(-50%);
+    right: 16px !important;
     max-height: calc(100vh - 10px - 16px - 61px);
   }
-
-  .dg.main .close-button { text-align: center !important; }
 }
 
 /* dat.gui sizes its own rows in pixels assuming the browser default
@@ -501,3 +498,137 @@ main.wrap.open {
 .ffplayer #pButton { left: 30px; }
 .ffplayer .next { left: 75px; }
 .ffplayer-playlist #timeline, .ffplayer-playlist #credits { left: 120px; }
+
+/* ---------- SUBSCRIBE (top left): the mailing list, as fractalfantasy.net's ---------- */
+
+.subscribe {
+  position: fixed;
+  top: 43px;
+  left: 24px;
+  z-index: 50;
+}
+
+/* the button, as Releases */
+.corner-cta {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  opacity: 0.7;
+  transition: opacity 0.15s ease;
+}
+
+.corner-cta:hover,
+.corner-cta[aria-expanded="true"] { opacity: 1; }
+
+.subscribe-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(340px, calc(100vw - 48px));
+  margin-top: 12px;
+  padding: 18px 20px 20px;
+  background: #000;
+  border: 1px solid #333;
+  font: 14px/1.4 Helvetica, Arial, sans-serif;
+  color: #fff;
+}
+
+.subscribe-form[hidden] { display: none; }
+
+.subscribe-form h2 {
+  margin: 0 0 2px;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.subscribe-form .news-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* a square box, filled when ticked */
+.subscribe-form input[type=checkbox] {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  margin: 0;
+  border: 1px solid #fff;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+.subscribe-form input[type=checkbox]:checked {
+  background: #fff;
+  box-shadow: inset 0 0 0 2px #000;
+}
+
+.subscribe-form .news-entry {
+  display: flex;
+  gap: 10px;
+}
+
+.subscribe-form input[type=email],
+.subscribe-form button {
+  padding: 12px 14px;
+  border: 1px solid #333;
+  border-radius: 0;
+  background: transparent;
+  color: #fff;
+  font: 16px Helvetica, Arial, sans-serif; /* 16px: iPhone doesn't zoom in */
+  -webkit-appearance: none;
+  outline: none;
+}
+
+.subscribe-form input[type=email] { flex: 1; min-width: 0; }
+.subscribe-form input[type=email]::placeholder { color: #999; }
+.subscribe-form input[type=email]:focus { border-color: #fff; }
+
+.subscribe-form button {
+  flex: none;
+  border-color: #fff;
+  background: #fff;
+  color: #000;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, opacity 0.2s;
+}
+
+.subscribe-form button::before { content: '\21A6'; margin-right: 8px; }
+.subscribe-form button:disabled { opacity: 0.5; cursor: default; }
+
+@media (hover: hover) {
+  .subscribe-form button:hover { background: transparent; color: #fff; }
+}
+
+.subscribe-form .trap {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.subscribe-form .status { margin: 0; font-size: 13px; }
+.subscribe-form .status:empty { display: none; }
+.subscribe-form .status.error { color: #ff8f8f; }
+
+@media (max-width: 600px) {
+  .subscribe { top: 14px; left: 16px; }
+}

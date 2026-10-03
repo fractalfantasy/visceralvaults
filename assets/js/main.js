@@ -222,7 +222,52 @@ function initModal() {
   });
 }
 
+// SUBSCRIBE: opens the mailing list form below it; it posts in the background, as fractalfantasy.net's
+function initSubscribe() {
+  const cta = document.getElementById("subscribe-cta");
+  const form = document.getElementById("subscribe-form");
+  if (!cta || !form) return;
+  let openedAt = 0;
+  const setOpen = (open) => {
+    form.hidden = !open;
+    cta.setAttribute("aria-expanded", String(open));
+    if (open) { openedAt = Date.now(); form.elements.email.focus(); }
+  };
+  cta.addEventListener("click", () => setOpen(form.hidden));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
+
+  const status = form.querySelector(".status");
+  const button = form.querySelector("button");
+  const say = (text, error) => { status.textContent = text; status.classList.toggle("error", !!error); };
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const invalid = [...form.elements].find((field) => field.required && !field.checkValidity());
+    if (invalid) {
+      say(invalid.type === "email" ? "Please enter a valid email address." : "Please tick the box to opt in.", true);
+      if (invalid.type !== "checkbox") invalid.focus();
+      return;
+    }
+    const body = Object.fromEntries(new FormData(form));
+    body.consent = form.elements.consent.checked;
+    body.elapsed = Date.now() - openedAt; // a person takes a moment; a bot doesn't
+    button.disabled = true;
+    say("Sending…");
+    try {
+      const res = await fetch(form.dataset.api, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const reply = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(reply.error || "Something went wrong. Please try again.");
+      say(reply.message);
+      form.reset();
+    } catch (error) {
+      say(error.message === "Failed to fetch" ? "No connection. Please try again." : error.message, true);
+    } finally {
+      button.disabled = false;
+    }
+  });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   initNavToggle();
   initModal();
+  initSubscribe();
 });
