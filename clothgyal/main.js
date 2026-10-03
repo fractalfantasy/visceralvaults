@@ -140,9 +140,14 @@ function applyBloom() {
 }
 
 // ---------- environment map (equirectangular panoramas) + background sphere with its own FOV
-const ENVMAP_BASE = 'https://fractalfantasy.net/waterball/build/pano/';
+// waterball's panoramas on fractalfantasy.net: the ones moved to the media bucket load from media.fractalfantasy.net
+// (the old /waterball/build/pano/ path serves those without CORS); the rest are still static files there, with CORS
+const MEDIA_PANOS = new Set([64, 68, 69, 75, 83, 84, 87, 90]);
+const panoUrl = (i) => (i <= 57 && i !== 48) || MEDIA_PANOS.has(i)
+  ? `https://media.fractalfantasy.net/waterball/pano${i}.jpg`
+  : `https://fractalfantasy.net/waterball/build/pano/pano${i}.jpg`;
 const envMapOptions = { None: '' };
-for (let i = 3; i <= 132; i++) envMapOptions[`Pano ${i}`] = `${ENVMAP_BASE}pano${i}.jpg`;
+for (let i = 3; i <= 132; i++) envMapOptions[`Pano ${i}`] = panoUrl(i);
 const envCache = {};
 const texLoader = new THREE.TextureLoader().setCrossOrigin('anonymous');
 let envToken = 0;

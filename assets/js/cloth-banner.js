@@ -98,7 +98,7 @@ const FALLBACK_PRESET = {
   ior: 2.333,
   dispersion: 1.84,
   thickness: 0,
-  envMap: "https://fractalfantasy.net/waterball/build/pano/pano36.jpg",
+  envMap: "https://media.fractalfantasy.net/waterball/pano36.jpg",
   lightX: -0.85,
   lightY: 1.08,
   lightZ: 0.57,
@@ -113,6 +113,28 @@ const FALLBACK_PRESET = {
   bloomThreshold: 0.85,
   bloomSoftness: 0.01,
 };
+
+// Waterball's panoramas (fractalfantasy.net). Most of 3-57 and a few later ones were moved to the
+// media bucket, and the old /waterball/build/pano/ path serves those without CORS, so WebGPU can't
+// use them from here: they load from media.fractalfantasy.net instead. The rest are still static
+// files on fractalfantasy.net, which does send CORS.
+const MEDIA_PANOS = new Set([64, 68, 69, 75, 83, 84, 87, 90]);
+function panoUrl(i) {
+  return (i <= 57 && i !== 48) || MEDIA_PANOS.has(i)
+    ? `https://media.fractalfantasy.net/waterball/pano${i}.jpg`
+    : `https://fractalfantasy.net/waterball/build/pano/pano${i}.jpg`;
+}
+// Points a pano URL saved in a preset (any of the old links) at where that pano works now.
+function relinkPano(url) {
+  const m = typeof url === "string" && url.match(/\/pano(\d+)\.jpg$/);
+  return m ? panoUrl(Number(m[1])) : url;
+}
+function relinkPresetPanos(presets) {
+  for (const p of Object.values(presets)) {
+    if (p && typeof p === "object") { p.envMap = relinkPano(p.envMap); p.clothEnvMap = relinkPano(p.clothEnvMap); }
+  }
+  return presets;
+}
 
 const PRESETS_STORAGE_KEY = "vv-presets";
 const LAST_PRESET_KEY = "vv-last-preset";
@@ -137,7 +159,7 @@ async function loadSharedPresets() {
   try {
     const res = await fetch("data/presets.json");
     const presets = await res.json();
-    if (presets && Object.keys(presets).length > 0) return presets;
+    if (presets && Object.keys(presets).length > 0) return relinkPresetPanos(presets);
   } catch {
     // fall through to the fallback below
   }
@@ -146,7 +168,7 @@ async function loadSharedPresets() {
 
 function loadCustomPresets() {
   try {
-    return JSON.parse(localStorage.getItem(PRESETS_STORAGE_KEY)) || {};
+    return relinkPresetPanos(JSON.parse(localStorage.getItem(PRESETS_STORAGE_KEY)) || {});
   } catch {
     return {};
   }
@@ -499,12 +521,10 @@ async function init() {
   const metalnessCtrl = materialFolder.add(guiParams, "metalness", 0, 1, 0.01);
   const colorCtrl = materialFolder.addColor(guiParams, "color").onChange((v) => { material.color.set(v); });
 
-  // Hotlinked rather than vendored — 130 panoramas would bloat the repo,
-  // and the host already serves them with permissive CORS headers so they
-  // can be loaded straight into a WebGPU texture.
-  const ENVMAP_BASE = "https://fractalfantasy.net/waterball/build/pano/";
+  // Hotlinked rather than vendored — 130 panoramas would bloat the repo
+  // (see panoUrl for which host serves each one with CORS).
   const envMapOptions = { None: "" };
-  for (let i = 3; i <= 132; i++) envMapOptions[`Pano ${i}`] = `${ENVMAP_BASE}pano${i}.jpg`;
+  for (let i = 3; i <= 132; i++) envMapOptions[`Pano ${i}`] = panoUrl(i);
 
   const textureLoader = new THREE.TextureLoader();
   let currentEnvTexture = null;
