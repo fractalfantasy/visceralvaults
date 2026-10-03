@@ -136,6 +136,7 @@ function relinkPresetPanos(presets) {
   return presets;
 }
 
+const DEFAULT_PRESET = "Red Candy Paint"; // what the page opens on
 const PRESETS_STORAGE_KEY = "vv-presets";
 const LAST_PRESET_KEY = "vv-last-preset";
 
@@ -184,8 +185,8 @@ async function init() {
   // take priority over a shared preset of the same name. Whichever preset
   // was last loaded or saved (locally, see saveLastPresetName) picks up
   // right where it left off on the next visit — handy for going back and
-  // forth while tuning one; falls back to a random pick only when there's
-  // no last one recorded yet (a first-ever visit) or it no longer exists.
+  // forth while tuning one; otherwise (a first visit, or it no longer
+  // exists) the page opens on Red Candy Paint, or a random one without it.
   const sharedPresets = await loadSharedPresets();
   const customPresets = loadCustomPresets();
   const startupPresetPool = { ...sharedPresets, ...customPresets };
@@ -193,6 +194,7 @@ async function init() {
   const lastPresetName = loadLastPresetName();
   const startupPresetName = (lastPresetName && startupPresetPool[lastPresetName])
     ? lastPresetName
+    : startupPresetPool[DEFAULT_PRESET] ? DEFAULT_PRESET
     : startupPresetNames[Math.floor(Math.random() * startupPresetNames.length)];
   const startupPreset = startupPresetPool[startupPresetName];
 
