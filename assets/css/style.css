@@ -163,14 +163,18 @@ main.wrap.open {
   overflow-x: hidden !important;
 }
 
-/* The "Open/Close Controls" button is appended as an absolutely-positioned
-   last child of .dg.main — with our own overflow-y:auto above, its static
-   (un-offset) position lands below the visible, scrolled viewport rather
-   than clipping into view. Sticking it to the bottom of the scroll area
-   keeps it reachable no matter how tall the open folders get. */
-.dg.main .close-button.close-bottom {
+/* The "Visual Controls" button is the panel's first child (closeOnTop), so
+   the controls open below it. Stuck to the top of the scroll area, it stays
+   in place however far the open folders are scrolled, on a black backing
+   (only while open) so the rows don't show through its text. */
+.dg.main .close-button.close-top {
   position: sticky !important;
-  bottom: 0 !important;
+  top: 0 !important;
+  z-index: 1;
+}
+
+.dg.main:has(> ul:not(.closed)) .close-button.close-top {
+  background: #000 !important;
 }
 
 /* The button itself ("Visual Controls"), in the Releases button's look: plain

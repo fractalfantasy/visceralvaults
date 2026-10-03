@@ -500,7 +500,7 @@ async function init() {
   // (see .dg.main in style.css).
   GUI.TEXT_OPEN = "Visual Controls"; // the button's label while the panel is closed
   GUI.TEXT_CLOSED = "Hide Visual Controls";
-  const gui = new GUI({ scrollable: false });
+  const gui = new GUI({ scrollable: false, closeOnTop: true }); // the button stays put, the panel opens below it
 
   // Added directly to the root gui (not a folder) so it renders as its own
   // row above every folder, including Presets. `.listen()` is dat.gui's
