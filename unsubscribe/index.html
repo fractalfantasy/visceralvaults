@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Unsubscribe · Visceral Vaults</title>
+<!-- The unsubscribe link in Visceral Vaults' mailouts: ?l=vv (its fans) or vvpress (its press list), &t= the
+     person's token, &n= the mailout. The button posts to fractalfantasy.net/api/vv/unsubscribe.json (the mailing
+     list lives there; this site is static), which answers in JSON. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #0a0a0a; --fg: #f5f5f5; --dim: #999; --line: #2a2a2a; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.6 Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    display: grid; place-items: center; padding: 24px 16px; text-align: center; -webkit-font-smoothing: antialiased; }
+  main { max-width: 420px; }
+  .mark { width: 180px; margin: 0 auto 40px; display: block; }
+  h1 { font-size: 18px; font-weight: 500; margin: 0 0 8px; }
+  p { color: var(--dim); margin: 0 0 28px; }
+  button { background: none; border: 1px solid var(--fg); color: var(--fg); font: 600 12px Inter, sans-serif; letter-spacing: .25em; padding: 14px 30px; cursor: pointer; }
+  button:hover { background: var(--fg); color: var(--bg); }
+  button:disabled { opacity: .4; cursor: default; }
+  .home { display: inline-block; margin-top: 36px; color: var(--dim); font-size: 12px; letter-spacing: .15em; text-decoration: none; }
+  .home:hover { color: var(--fg); }
+</style>
+</head>
+<body>
+<main>
+  <a href="/"><img class="mark" src="/assets/img/site/visceral-vaults-wordmark-grey.png" alt="VISCERAL VAULTS"></a>
+  <h1 id="title">Unsubscribe</h1>
+  <p id="text">Stop receiving emails from Visceral Vaults?</p>
+  <button type="button" id="go">UNSUBSCRIBE</button>
+  <br><a class="home" href="/">VISCERALVAULTS.COM</a>
+</main>
+<script>
+  var q = new URLSearchParams(location.search), list = q.get('l'), token = q.get('t');
+  var title = document.getElementById('title'), text = document.getElementById('text'), go = document.getElementById('go');
+  function done(heading, message) { title.textContent = heading; text.textContent = message; go.hidden = true; }
+  if (list === 'vvpress') text.textContent = 'Stop receiving press emails from Visceral Vaults?';
+  if (!token || (list !== 'vv' && list !== 'vvpress')) done('Link incomplete', 'This unsubscribe link is missing something. Reply to the email and we’ll take you off the list.');
+  else if (token === 'test') done('Test email', 'This was a test copy: nothing to unsubscribe from.');
+  go.addEventListener('click', function () {
+    go.disabled = true;
+    fetch('https://fractalfantasy.net/api/vv/unsubscribe.json?' + new URLSearchParams({ l: list, t: token, n: q.get('n') || '' }), { method: 'POST' })
+      .then(function (r) { return r.json().catch(function () { return {}; }); })
+      .then(function (data) {
+        if (data.ok) done('Unsubscribed', data.already ? 'You were already off the list.' : 'You’re off the list. Sorry to see you go.');
+        else done('Link expired', 'This link is no longer valid. Reply to the email and we’ll take you off the list.');
+      })
+      .catch(function () { go.disabled = false; text.textContent = 'Couldn’t reach the server. Check your connection and try again.'; });
+  });
+</script>
+</body>
+</html>
