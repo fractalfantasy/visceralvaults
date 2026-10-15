@@ -13,7 +13,8 @@ function formatDate(iso) {
 }
 
 async function loadReleases() {
-  const res = await fetch("data/releases.json");
+  // "no-cache": ask GitHub Pages every time (it otherwise lets browsers keep it 10 minutes), so a new track shows at once
+  const res = await fetch("data/releases.json", { cache: "no-cache" });
   const releases = await res.json();
   return releases.sort((a, b) => new Date(b.date) - new Date(a.date));
 }
