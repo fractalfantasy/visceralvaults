@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>JASHIM — Press dossier</title>
+<!-- Format 4, the dossier: a monospace fact sheet that prints as it reads. The facts, the tracklist (with
+     play buttons), the downloads, the press release and the contact, nothing else. -->
+<style>
+  :root { --ink: #111; --dim: #8a8a8a; --line: #d9d9d9; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #fff; color: var(--ink); font: 13px/1.6 'SF Mono', Menlo, 'IBM Plex Mono', Consolas, monospace; }
+  a { color: inherit; }
+  .sheet { max-width: 860px; margin: 0 auto; padding: 40px 24px 80px; }
+  .head { display: grid; grid-template-columns: 180px 1fr; gap: 24px; align-items: end; border-bottom: 2px solid var(--ink); padding: 0 0 20px; }
+  .head img.cover { width: 180px; display: block; }
+  .head .title { width: 260px; max-width: 100%; display: block; margin: 0 0 12px; }
+  .head .doc { color: var(--dim); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+  section { padding: 22px 0; border-bottom: 1px solid var(--line); }
+  h2 { font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: var(--dim); font-weight: 400; margin: 0 0 12px; }
+  table { border-collapse: collapse; width: 100%; }
+  .facts td { padding: 4px 0; vertical-align: top; }
+  .facts td:first-child { width: 190px; color: var(--dim); text-transform: uppercase; font-size: 11px; letter-spacing: .1em; padding-top: 6px; }
+  .tracks td { padding: 7px 0; border-bottom: 1px dotted var(--line); }
+  .tracks td.n { width: 36px; color: var(--dim); }
+  .tracks td.len { width: 60px; text-align: right; color: var(--dim); }
+  .tracks td.go { width: 64px; }
+  .tracks button { border: 1px solid var(--ink); background: none; font: inherit; font-size: 11px; padding: 1px 8px; cursor: pointer; width: 54px; }
+  .tracks button::after { content: 'PLAY'; }
+  .tracks tr.is-playing button { background: var(--ink); color: #fff; }
+  .tracks tr.is-playing button::after { content: 'STOP'; }
+  .tracks tr.is-current td:not(.n):not(.len) { font-weight: 700; }
+  .status { margin: 10px 0 0; color: var(--dim); font-size: 11px; min-height: 1.6em; }
+  .downloads li { margin: 0 0 4px; }
+  .downloads { list-style: square; padding-left: 18px; margin: 0; }
+  .release p { margin: 0 0 12px; max-width: 70ch; }
+  .print { float: right; border: 1px solid var(--ink); background: none; font: inherit; font-size: 11px; padding: 3px 10px; cursor: pointer; }
+  @media print { .print, .tracks td.go, .status { display: none; } body { font-size: 11px; } .sheet { padding: 0; } }
+  @media (max-width: 600px) { .head { grid-template-columns: 1fr; } .facts td:first-child { width: 120px; } }
+</style>
+</head>
+<body>
+<div class="sheet">
+  <div class="head">
+    <img class="cover" src="../../img/jashim-cover.jpg?v=3" alt="JASHIM, the album cover">
+    <div>
+      <button class="print" onclick="print()">PRINT / PDF</button>
+      <img class="title" src="../../img/jashim-impact-black.png" alt="JASHIM">
+      <div class="doc">Press dossier · Debut album · Visceral Vaults VV007</div>
+    </div>
+  </div>
+  <section>
+    <h2>01 · Facts</h2>
+    <table class="facts" id="facts"></table>
+  </section>
+  <section>
+    <h2>02 · Tracklist (full album, private stream)</h2>
+    <table class="tracks" id="tracks"></table>
+    <div class="status"><span data-now></span> <span data-time></span></div>
+  </section>
+  <section>
+    <h2>03 · Downloads</h2>
+    <ul class="downloads" id="downloads"></ul>
+  </section>
+  <section class="release">
+    <h2>04 · Press release</h2>
+    <div id="bio"></div>
+  </section>
+  <section class="release">
+    <h2>05 · Singles</h2>
+    <div id="singles"></div>
+  </section>
+  <section>
+    <h2>06 · Contact</h2>
+    Interviews, premieres and reviews: <a id="contact"></a><br>
+    Pre-save: <a id="presave" target="_blank"></a>
+  </section>
+</div>
+<script src="../player.js"></script>
+<script>
+  var A = JASHIM.ALBUM, S = JASHIM.SONGS, $ = function (id) { return document.getElementById(id); };
+  var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+  var up = function (p) { return '../' + p; };
+  var facts = [['Artist', 'JASHIM'], ['Title', 'JASHIM (debut album)'], ['Label', 'Visceral Vaults, a sublabel of Fractal Fantasy'], ['Catalogue', A.cat],
+    ['Release', A.release], ['Format', 'Digital, all major stores and streaming'], ['Tracks', S.length + ' · ' + (function () { var t = S.reduce(function (n, s) { var m = s.length.split(':'); return n + 60 * m[0] + 1 * m[1]; }, 0); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); })()], ['Executive producer', A.producer],
+    ['Featuring', A.guests], ['Sound', 'Guaracha, neo-perreo, reggaetón, brega funk, electro, ballroom/vogue'], ['Languages', 'Spanish, French'],
+    ['From', 'Montreal, Colombian roots'], ['Singles', A.singles.map(function (s) { return s.title + ' (out ' + s.out + ')'; }).join('; ')]];
+  $('facts').innerHTML = facts.map(function (f) { return '<tr><td>' + esc(f[0]) + '</td><td>' + esc(f[1]) + '</td></tr>'; }).join('');
+  $('tracks').innerHTML = S.map(function (s, i) {
+    return '<tr data-play="' + i + '"><td class="n">' + String(s.n).padStart(2, '0') + '</td><td>' + esc(s.full) + '</td><td class="len">' + s.length +
+      '</td><td class="go"><button aria-label="Play ' + esc(s.title) + '"></button></td></tr>';
+  }).join('');
+  var files = [['Album cover (JPG)', A.cover]].concat(A.photos.map(function (p, i) { return ['Press photo ' + (i + 1) + ' (JPG)', p]; }))
+    .concat(A.singles.map(function (s) { return ['Single artwork: ' + s.title + ' (JPG)', s.art]; }));
+  $('downloads').innerHTML = files.map(function (f) { return '<li><a href="' + up(f[1]) + '" download>' + esc(f[0]) + '</a></li>'; }).join('');
+  $('bio').innerHTML = A.bio.map(function (p) { return '<p>' + esc(p) + '</p>'; }).join('') + '<p>' + esc(A.out) + '</p>';
+  $('singles').innerHTML = A.singles.map(function (s) { return '<p><b>' + esc(s.title) + '</b> · out ' + esc(s.out) + '<br>' + esc(s.text) + '</p>'; }).join('');
+  $('contact').href = 'mailto:' + A.contact; $('contact').textContent = A.contact;
+  $('presave').href = A.presave; $('presave').textContent = A.presave.replace(/^https?:\/\//, '');
+  JASHIM.draw();
+</script>
+</body>
+</html>

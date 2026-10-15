@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>JASHIM — Press kit (zine)</title>
+<!-- Format 3, the zine: light grey paper, the stretched title across the page, serif text with pull
+     quotes, photos bleeding to the edges, and the album as a big numbered list with notes on the singles. -->
+<style>
+  :root { --paper: #e9e9e9; --ink: #0d0d0d; --dim: #6f6f6f; --rule: #bdbdbd; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 18px/1.7 Georgia, 'Times New Roman', serif; }
+  a { color: inherit; }
+  .mast { padding: 28px 24px 0; }
+  .mast .row { display: flex; justify-content: space-between; font: 11px Helvetica, Arial, sans-serif; letter-spacing: .3em; text-transform: uppercase; border-bottom: 1px solid var(--ink); padding: 0 0 10px; }
+  .mast .title { width: 100%; display: block; margin: 26px 0 0; }
+  .lede { max-width: 980px; margin: 40px auto 0; padding: 0 24px; display: grid; grid-template-columns: 1fr 1.1fr; gap: 40px; align-items: start; }
+  .lede img { width: 100%; display: block; }
+  .lede p.first { font-size: 30px; line-height: 1.25; margin: 0 0 18px; }
+  .lede p { margin: 0 0 16px; }
+  .lede p.first::first-letter { float: left; font-size: 92px; line-height: .8; padding: 8px 10px 0 0; }
+  .playbar { display: flex; gap: 12px; align-items: center; font: 12px Helvetica, Arial, sans-serif; letter-spacing: .15em; text-transform: uppercase; margin: 22px 0 0; }
+  .playbar button { border: 0; background: var(--ink); color: var(--paper); padding: 10px 16px; font: inherit; letter-spacing: inherit; cursor: pointer; }
+  .playbar .lbl::after { content: '▶ Play the album'; } body.is-playing .playbar .lbl::after { content: '❚❚ Pause'; }
+  .playbar span { color: var(--dim); }
+  .bleed { margin: 70px 0; }
+  .bleed img { width: 100%; display: block; max-height: 90vh; object-fit: cover; }
+  .quote { max-width: 900px; margin: 60px auto; padding: 0 24px; font-style: italic; font-size: clamp(28px, 4.4vw, 52px); line-height: 1.15; text-align: center; }
+  .quote small { display: block; font: 11px Helvetica, Arial, sans-serif; letter-spacing: .3em; font-style: normal; color: var(--dim); margin: 18px 0 0; text-transform: uppercase; }
+  .text { max-width: 680px; margin: 0 auto; padding: 0 24px; }
+  .text p { margin: 0 0 18px; }
+  h2 { font: 11px Helvetica, Arial, sans-serif; letter-spacing: .35em; text-transform: uppercase; color: var(--dim); text-align: center; margin: 80px 0 24px; }
+  .tracks { max-width: 980px; margin: 0 auto; padding: 0 24px; }
+  .track { display: grid; grid-template-columns: 124px 1fr; gap: 20px; border-top: 1px solid var(--rule); padding: 18px 0; cursor: pointer; }
+  .track .num { font: 64px/0.9 Impact, 'Arial Black', sans-serif; transform: scaleX(1.8); transform-origin: left; color: var(--rule); }
+  .track.is-current .num { color: var(--ink); }
+  .track .name { font-size: 28px; line-height: 1.2; }
+  .track .meta { font: 12px Helvetica, Arial, sans-serif; letter-spacing: .1em; color: var(--dim); margin: 4px 0 0; }
+  .track .note { font-size: 15px; color: #333; margin: 10px 0 0; max-width: 620px; }
+  .track:hover .name { text-decoration: underline; text-decoration-thickness: 1px; }
+  .track.is-playing .meta::before { content: '▶ NOW PLAYING · '; color: var(--ink); }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 70px 0; }
+  .pair img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .end { text-align: center; padding: 40px 24px 80px; font: 12px Helvetica, Arial, sans-serif; letter-spacing: .12em; color: var(--dim); }
+  .end a.pre { display: inline-block; margin: 0 0 24px; background: var(--ink); color: var(--paper); text-decoration: none; padding: 14px 28px; letter-spacing: .3em; }
+  @font-face { font-family: Impact; src: local('Impact'), url(https://fractalfantasy.net/signature/impact.woff) format('woff'); }
+  @media (max-width: 760px) { .lede { grid-template-columns: 1fr; } .track { grid-template-columns: 92px 1fr; } .track .num { font-size: 44px; } }
+</style>
+</head>
+<body>
+<header class="mast">
+  <div class="row"><span>Visceral Vaults</span><span>Issue VV007</span><span id="release"></span></div>
+  <img class="title" src="../../img/jashim-impact-black.png" alt="JASHIM">
+</header>
+<section class="lede">
+  <img src="../../img/jashim-cover.jpg?v=3" alt="JASHIM, the album cover">
+  <div>
+    <p class="first" id="first"></p>
+    <p id="second"></p>
+    <div class="playbar"><button data-toggle><span class="lbl"></span></button><span data-now></span> <span data-time></span></div>
+  </div>
+</section>
+<div class="bleed"><img src="../../img/press-4.jpg" alt="JASHIM"></div>
+<div class="quote">“A melancholic perreo on a mid-summer night.”<small>The record</small></div>
+<div class="text" id="rest"></div>
+<div class="pair"><img src="../../img/press-1.jpg" alt="JASHIM"><img src="../../img/press-goggles.jpg" alt="JASHIM"></div>
+<h2>The album, track by track</h2>
+<div class="tracks" id="tracks"></div>
+<div class="quote">“A call-to-action for baddies.”<small>Gistro (feat. Moonstar)</small></div>
+<div class="pair"><img src="../../img/press-2.jpg" alt="JASHIM"><img src="../../img/press-3.jpg" alt="JASHIM"></div>
+<div class="end">
+  <a class="pre" id="presave" target="_blank">PRE-SAVE THE ALBUM</a><br>
+  Executive producer: Sinjin Hawke · © Visceral Vaults 2026 · VV007<br>
+  Interviews, premieres and reviews: <a id="contact"></a>
+</div>
+<script src="../player.js"></script>
+<script>
+  var A = JASHIM.ALBUM, S = JASHIM.SONGS, $ = function (id) { return document.getElementById(id); };
+  var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+  $('release').textContent = A.releaseShort;
+  $('presave').href = A.presave;
+  $('contact').href = 'mailto:' + A.contact; $('contact').textContent = A.contact;
+  $('first').textContent = A.bio[0];
+  $('second').textContent = A.bio[1];
+  $('rest').innerHTML = A.bio.slice(2).map(function (p) { return '<p>' + esc(p) + '</p>'; }).join('') + '<p><i>' + esc(A.out) + '</i></p>';
+  var notes = {}; A.singles.forEach(function (s) { notes[s.song] = s; });
+  $('tracks').innerHTML = S.map(function (s, i) {
+    var single = notes[i];
+    return '<div class="track" data-play="' + i + '"><div class="num">' + s.n + '</div><div><div class="name">' + esc(s.title) + '</div>' +
+      '<div class="meta">' + (s.feat ? 'FEAT. ' + esc(s.feat).toUpperCase() + ' · ' : '') + s.length + (single ? ' · SINGLE, OUT ' + esc(single.out).toUpperCase() : '') + '</div>' +
+      (single ? '<div class="note">' + esc(single.text) + '</div>' : '') + '</div></div>';
+  }).join('');
+  JASHIM.draw();
+</script>
+</body>
+</html>

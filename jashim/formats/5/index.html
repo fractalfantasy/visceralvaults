@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>JASHIM — Poster</title>
+<!-- Format 5, the poster: black, a screen at a time. The cover and the stretched title, then each song as
+     its own screen, its name in Impact stretched 180% and fitted to the width (click it to play), the press
+     release and the photos at the end; a player bar stays at the bottom. -->
+<style>
+  @font-face { font-family: 'Impact VV'; src: local('Impact'), url(https://fractalfantasy.net/signature/impact.woff) format('woff'); }
+  :root { --grey: #d4d4d4; --dim: #7d7d7d; }
+  * { box-sizing: border-box; }
+  html { scroll-snap-type: y proximity; }
+  body { margin: 0; overflow-x: hidden; background: #000; color: #fff; font: 15px/1.6 Helvetica, Arial, sans-serif; padding-bottom: 64px; }
+  a { color: inherit; }
+  .screen { min-height: 100vh; scroll-snap-align: start; display: flex; flex-direction: column; justify-content: center; padding: 6vh 5vw; position: relative; overflow: hidden; }
+  .open { align-items: center; text-align: center; gap: 4vh; }
+  .open .cover { width: min(46vh, 80vw); display: block; }
+  .open .title { width: min(90vw, 1000px); display: block; }
+  .kicker { font-size: 11px; letter-spacing: .4em; text-transform: uppercase; color: var(--grey); }
+  /* Impact, stretched 180% wide; the size is fitted to the width by fit() below */
+  .stretch { font-family: 'Impact VV', Impact, 'Arial Black', sans-serif; display: inline-block; transform: scaleX(1.8); transform-origin: left center; white-space: nowrap; line-height: .95; letter-spacing: .01em; }
+  .song { cursor: pointer; border-top: 1px solid #1f1f1f; }
+  .song .num { font-size: 12px; letter-spacing: .4em; color: var(--dim); margin: 0 0 2vh; }
+  .song .name { color: #fff; transition: color .2s; }
+  .song:hover .name { color: var(--grey); }
+  .song.is-current .name { color: var(--grey); }
+  .song .feat { font-size: 13px; letter-spacing: .3em; text-transform: uppercase; color: var(--grey); margin: 3vh 0 0; }
+  .song .hint { font-size: 11px; letter-spacing: .3em; color: var(--dim); margin: 2vh 0 0; }
+  .song .hint::after { content: 'PLAY'; } .song.is-playing .hint::after { content: 'PLAYING · CLICK TO PAUSE'; color: #fff; }
+  .song .bg { position: absolute; inset: 0; background-position: center; background-size: cover; opacity: .16; z-index: -1; filter: grayscale(1); }
+  .about { max-width: 760px; margin: 0 auto; }
+  .about p { color: #ddd; margin: 0 0 16px; }
+  .about p:first-child { font-size: 22px; line-height: 1.4; color: #fff; }
+  .photos { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 6px; }
+  .photos img { width: 100%; height: 100%; object-fit: cover; display: block; aspect-ratio: 4 / 5; }
+  .end { text-align: center; font-size: 12px; color: var(--dim); letter-spacing: .1em; gap: 24px; align-items: center; }
+  .end a.pre { border: 1px solid #fff; color: #fff; text-decoration: none; padding: 14px 28px; letter-spacing: .35em; font-size: 12px; }
+  .end a.pre:hover { background: #fff; color: #000; }
+  .bar { position: fixed; left: 0; right: 0; bottom: 0; height: 56px; background: #000; border-top: 1px solid #222; display: flex; align-items: center; gap: 14px; padding: 0 16px; z-index: 10; }
+  .bar button { background: none; border: 0; color: #fff; font: 600 12px Helvetica, Arial, sans-serif; letter-spacing: .2em; cursor: pointer; padding: 6px; }
+  .bar .tg::after { content: 'PLAY'; } body.is-playing .bar .tg::after { content: 'PAUSE'; }
+  .bar .now { font-size: 12px; color: var(--grey); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 32vw; }
+  .bar .seek { flex: 1; height: 24px; display: flex; align-items: center; cursor: pointer; }
+  .bar .track { height: 2px; width: 100%; background: #2a2a2a; position: relative; }
+  .bar .track i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--grey); }
+  .bar .time { font-size: 11px; color: var(--dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .bar a { font-size: 11px; letter-spacing: .2em; text-decoration: none; color: #fff; white-space: nowrap; }
+  @media (max-width: 640px) { .bar .now { display: none; } }
+</style>
+</head>
+<body>
+<section class="screen open">
+  <img class="cover" src="../../img/jashim-cover.jpg?v=3" alt="JASHIM, the album cover">
+  <img class="title" src="../../img/jashim-impact-white.png" alt="JASHIM">
+  <div class="kicker">The debut album · Visceral Vaults · <span id="release"></span></div>
+</section>
+<div id="songs"></div>
+<section class="screen"><div class="about" id="about"></div></section>
+<section class="screen"><div class="photos" id="photos"></div></section>
+<section class="screen end">
+  <a class="pre" id="presave" target="_blank">PRE-SAVE THE ALBUM</a>
+  <div>Executive producer: Sinjin Hawke · © Visceral Vaults 2026 · VV007<br>Interviews, premieres and reviews: <a id="contact"></a></div>
+</section>
+<div class="bar">
+  <button data-prev aria-label="Previous">‹</button>
+  <button class="tg" data-toggle></button>
+  <button data-next aria-label="Next">›</button>
+  <span class="now" data-now></span>
+  <div class="seek" data-seek><div class="track"><i data-progress></i></div></div>
+  <span class="time" data-time></span>
+  <a id="presave2" target="_blank">PRE-SAVE</a>
+</div>
+<script src="../player.js"></script>
+<script>
+  var A = JASHIM.ALBUM, S = JASHIM.SONGS, $ = function (id) { return document.getElementById(id); };
+  var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+  var up = function (p) { return '../' + p; };
+  var art = [A.cover, A.photos[0], A.photos[1], A.singles[1].art, A.photos[2], A.photos[3], A.photos[4], A.photos[0], A.photos[2], A.photos[1], A.cover];
+  $('release').textContent = A.releaseShort;
+  $('presave').href = $('presave2').href = A.presave;
+  $('contact').href = 'mailto:' + A.contact; $('contact').textContent = A.contact;
+  $('songs').innerHTML = S.map(function (s, i) {
+    return '<section class="screen song" data-play="' + i + '"><div class="bg" style="background-image:url(' + up(art[i]) + ')"></div>' +
+      '<div class="num">' + String(s.n).padStart(2, '0') + ' / ' + S.length + ' · ' + s.length + '</div>' +
+      '<div><span class="stretch name">' + esc(s.title.toUpperCase()) + '</span></div>' +
+      (s.feat ? '<div class="feat">feat. ' + esc(s.feat) + '</div>' : '') + '<div class="hint"></div></section>';
+  }).join('');
+  $('about').innerHTML = A.bio.map(function (p) { return '<p>' + esc(p) + '</p>'; }).join('') + '<p><i>' + esc(A.out) + '</i></p>';
+  $('photos').innerHTML = A.photos.map(function (p, i) { return '<img src="' + up(p) + '" alt="JASHIM, press photo ' + (i + 1) + '" loading="lazy">'; }).join('');
+  // each name as big as fits: its width, stretched 1.8, inside the screen's
+  function fit() {
+    document.querySelectorAll('.stretch').forEach(function (e) {
+      var room = e.closest('.screen').clientWidth * 0.9;
+      e.style.fontSize = '100px';
+      var w = e.getBoundingClientRect().width; // (already stretched)
+      e.style.fontSize = Math.min(260, Math.max(14, 100 * room / w)) + 'px';
+      e.parentElement.style.width = e.getBoundingClientRect().width + 'px';
+    });
+  }
+  addEventListener('resize', fit);
+  (document.fonts ? document.fonts.ready : Promise.resolve()).then(fit);
+  fit();
+  JASHIM.draw();
+</script>
+</body>
+</html>

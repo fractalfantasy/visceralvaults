@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>JASHIM — Press kit (one-sheet)</title>
+<!-- Format 1, the one-sheet: white and editorial. The cover, the title and the player stay put on the left
+     while the press release, the singles, the tracklist and the photos scroll by on the right. -->
+<style>
+  :root { --fg: #000; --dim: #8a8a8a; --line: #e2e2e2; --grey: #d4d4d4; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #fff; color: var(--fg); font: 15px/1.65 Helvetica, Arial, sans-serif; }
+  a { color: inherit; }
+  .wrap { display: grid; grid-template-columns: minmax(280px, 400px) minmax(0, 1fr); gap: 64px; max-width: 1180px; margin: 0 auto; padding: 48px 32px 80px; }
+  .side { position: sticky; top: 48px; align-self: start; }
+  .side .cover { width: 100%; display: block; }
+  .side .title { width: 100%; display: block; margin: 22px 0 10px; }
+  .kicker { font-size: 11px; letter-spacing: .3em; text-transform: uppercase; color: var(--dim); }
+  .player { margin: 22px 0 0; border-top: 1px solid var(--fg); padding: 14px 0 0; }
+  .player .row { display: flex; align-items: center; gap: 10px; }
+  .btn { border: 1px solid var(--fg); background: none; color: var(--fg); font: 600 11px Helvetica, Arial, sans-serif; letter-spacing: .2em; padding: 9px 14px; cursor: pointer; text-transform: uppercase; text-decoration: none; display: inline-block; }
+  .btn:hover, .btn.solid { background: var(--fg); color: #fff; }
+  .btn.solid:hover { background: #fff; color: var(--fg); }
+  .play-label::after { content: 'Play the album'; }
+  body.is-playing .play-label::after { content: 'Pause'; }
+  .now { font-weight: 600; margin: 12px 0 2px; }
+  .time { color: var(--dim); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .seek { height: 14px; display: flex; align-items: center; cursor: pointer; margin: 6px 0 0; }
+  .seek::before { content: ''; position: absolute; }
+  .bar { height: 2px; background: var(--line); width: 100%; position: relative; }
+  .bar i { position: absolute; inset: 0 auto 0 0; background: var(--fg); width: 0; }
+  .links { margin: 20px 0 0; display: flex; flex-wrap: wrap; gap: 8px; }
+  .contact { margin: 18px 0 0; font-size: 12px; color: var(--dim); }
+  main h2 { font-size: 11px; letter-spacing: .3em; text-transform: uppercase; color: var(--dim); font-weight: 400; margin: 56px 0 16px; padding-top: 14px; border-top: 1px solid var(--fg); }
+  main h2:first-child { margin-top: 0; }
+  .bio p { margin: 0 0 16px; font-size: 17px; line-height: 1.6; }
+  .bio p:first-child { font-size: 22px; line-height: 1.4; }
+  .out { font-style: italic; color: #444; }
+  .singles { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+  .singles img { width: 100%; display: block; }
+  .singles h3 { font-size: 15px; margin: 12px 0 0; }
+  .singles .meta { color: var(--dim); font-size: 12px; margin: 2px 0 8px; }
+  .singles p { font-size: 13px; color: #333; margin: 8px 0 0; }
+  .tracks { list-style: none; margin: 0; padding: 0; }
+  .tracks li { display: grid; grid-template-columns: 34px 1fr auto; gap: 8px; padding: 11px 0; border-bottom: 1px solid var(--line); cursor: pointer; align-items: baseline; }
+  .tracks li:hover { background: #fafafa; }
+  .tracks .n { color: var(--dim); font-variant-numeric: tabular-nums; font-size: 12px; }
+  .tracks .feat { color: var(--dim); }
+  .tracks .len { color: var(--dim); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .tracks li.is-current .t { font-weight: 700; }
+  .tracks li.is-playing .n { color: var(--fg); }
+  .tracks li.is-playing .n::before { content: '▶ '; font-size: 9px; }
+  .credits { font-size: 13px; color: #333; }
+  .photos { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .photos figure { margin: 0; }
+  .photos figure:first-child { grid-column: 1 / -1; }
+  .photos img { width: 100%; display: block; }
+  .photos figcaption { font-size: 11px; color: var(--dim); margin: 6px 0 0; }
+  footer { margin: 64px 0 0; font-size: 11px; color: var(--dim); letter-spacing: .1em; }
+  @media (max-width: 860px) {
+    .wrap { grid-template-columns: 1fr; gap: 40px; padding: 24px 16px 60px; }
+    .side { position: static; }
+    .singles { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <aside class="side">
+    <img class="cover" src="../../img/jashim-cover.jpg?v=3" alt="JASHIM, the album cover">
+    <img class="title" src="../../img/jashim-impact-black.png" alt="JASHIM">
+    <div class="kicker">The debut album · Visceral Vaults · <span id="release"></span></div>
+    <div class="player">
+      <div class="row">
+        <button class="btn solid" data-toggle><span class="play-label"></span></button>
+        <button class="btn" data-prev aria-label="Previous">‹</button>
+        <button class="btn" data-next aria-label="Next">›</button>
+      </div>
+      <div class="now" data-now></div>
+      <div class="seek" data-seek><div class="bar"><i data-progress></i></div></div>
+      <div class="time" data-time></div>
+    </div>
+    <div class="links">
+      <a class="btn" id="presave" target="_blank">Pre-save</a>
+      <a class="btn" href="#photos">Press photos</a>
+    </div>
+    <div class="contact">Interviews, premieres and reviews: <a id="contact"></a></div>
+  </aside>
+  <main>
+    <h2>Press release</h2>
+    <div class="bio" id="bio"></div>
+    <h2>Singles</h2>
+    <div class="singles" id="singles"></div>
+    <h2>Tracklist</h2>
+    <ol class="tracks" id="tracks"></ol>
+    <p class="credits">Executive producer: Sinjin Hawke<br>© Visceral Vaults 2026 · VV007</p>
+    <h2 id="photos">Press photos</h2>
+    <div class="photos" id="photo-grid"></div>
+    <footer>VISCERAL VAULTS · A SUBLABEL OF FRACTAL FANTASY</footer>
+  </main>
+</div>
+<script src="../player.js"></script>
+<script>
+  var A = JASHIM.ALBUM, S = JASHIM.SONGS, $ = function (id) { return document.getElementById(id); };
+  var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+  var up = function (p) { return '../' + p; }; // (the data's pictures are relative to jashim/formats/)
+  $('release').textContent = A.releaseShort;
+  $('presave').href = A.presave;
+  $('contact').href = 'mailto:' + A.contact; $('contact').textContent = A.contact;
+  $('bio').innerHTML = A.bio.map(function (p) { return '<p>' + esc(p) + '</p>'; }).join('') + '<p class="out">' + esc(A.out) + '</p>';
+  $('singles').innerHTML = A.singles.map(function (s) {
+    return '<div><img src="' + up(s.art) + '" alt="' + esc(s.title) + '"><h3>' + esc(s.title) + '</h3><div class="meta">Single, out ' + esc(s.out) +
+      ' · <a href="#" data-play="' + s.song + '">Play</a> · <a href="' + s.link + '" target="_blank">Listen / pre-save</a></div><p>' + esc(s.text) + '</p></div>';
+  }).join('');
+  $('tracks').innerHTML = S.map(function (s, i) {
+    return '<li data-play="' + i + '"><span class="n">' + String(s.n).padStart(2, '0') + '</span><span><span class="t">' + esc(s.title) + '</span>' +
+      (s.feat ? ' <span class="feat">feat. ' + esc(s.feat) + '</span>' : '') + '</span><span class="len">' + s.length + '</span></li>';
+  }).join('');
+  $('photo-grid').innerHTML = A.photos.map(function (p, i) {
+    return '<figure><img src="' + up(p) + '" alt="JASHIM, press photo ' + (i + 1) + '" loading="lazy"><figcaption><a href="' + up(p) + '" download>Download</a></figcaption></figure>';
+  }).join('');
+  JASHIM.draw();
+</script>
+</body>
+</html>
