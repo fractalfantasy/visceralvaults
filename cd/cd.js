@@ -616,14 +616,17 @@ const covers = releases.map(r => {
 // Set like the label's press pages: the wordmark and the date, the title in Impact stretched 180% wide, the
 // artists, the tracklist, the credits; for a release with a press release, its opening paragraphs too.
 const NOTES = {
+  // the singles: set as a page of the press kit, a press photo beside the release's words (the first paragraph large)
   'yo-se': {
-    cat: 'Single',
+    cat: 'Single', caption: 'The first single from ‘JASHIM’', photo: 'jashim/img/press-1.jpg',
     text: ['JASHIM’s first single introduces the world of his self-titled debut: a hazy, sensual Latin club track built around beautiful micromelodies, a rolling dembow rhythm, and the intimate chemistry of a summer night.',
-      'Smooth rhodes chords float above a deep UK bassline, creating a contrast between warmth and low-end pressure.'],
+      'Smooth rhodes chords float above a deep UK bassline, creating a contrast between warmth and low-end pressure.',
+      'Lyrically, the song captures the charged feeling of two people caught up in the same late-night frequency: flirting, desire, intoxication.'],
   },
   gistro: {
-    cat: 'Single',
+    cat: 'Single', caption: 'The second single from ‘JASHIM’', photo: 'jashim/img/press-3.jpg',
     text: ['“GISTRO” is the second single from JASHIM’s self-titled LP, pushing the project deeper into JASHIM’s club universe with a high-energy Neoperreo track produced by Sinjin Hawke.',
+      'A sidechained electro bassline drives the track with a powerful, elastic pulse, colliding with crunk energy and hard-hitting club percussion.',
       'Legendary Montreal Vogue commentator Moonstar delivers cunty ballroom vocals that turn the track into a call-to-action for baddies.'],
   },
   jashim: {
@@ -686,10 +689,15 @@ function insidePage(r) {
   t.anisotropy = renderer.capabilities.getMaxAnisotropy();
   insidePages.set(r.id, t);
   const photo = new Image();
-  photo.src = `../${r.cover}`;
+  photo.src = `../${NOTES[r.id]?.photo ?? r.cover}`;
   Promise.all([fontsReady, wordmark.decode().catch(() => {}), photo.decode().catch(() => {})]).then(() => {
     const g = canvas.getContext('2d');
     const notes = NOTES[r.id];
+    if (notes?.photo) {
+      pressPage(g, N, r, notes, photo);
+      t.needsUpdate = true;
+      return;
+    }
     const M = 78;
     g.fillStyle = '#f1f1ef';
     g.fillRect(0, 0, N, N);
@@ -773,6 +781,115 @@ function insidePage(r) {
     t.needsUpdate = true;
   });
   return t;
+}
+
+// A single's inside page, set like the press page: the wordmark and the date in spaced capitals along the top, the
+// title alone in outlined Impact (a guest goes small, beside the artist), a caption, a hairline; then a press photo
+// down the left, and on the right the press release (its first paragraph large) over the track; the credits at the
+// foot. The words shrink until they fit.
+function pressPage(g, N, r, notes, photo) {
+  const M = 78, INK = '#111', GREY = '#8a8a8a';
+  const caps = (text, x, y, size, color, align = 'left', spacing = 0.2) => {
+    g.font = `600 ${size}px Inter`;
+    g.fillStyle = color;
+    g.textAlign = align;
+    g.letterSpacing = `${size * spacing}px`;
+    g.fillText(text.toUpperCase(), x, y);
+    g.letterSpacing = '0px';
+  };
+  const wrap = (text, width) => {
+    const lines = [];
+    let line = '';
+    for (const word of text.split(' ')) {
+      const test = line ? `${line} ${word}` : word;
+      if (line && g.measureText(test).width > width) { lines.push(line); line = word; } else line = test;
+    }
+    return line ? lines.concat(line) : lines;
+  };
+  g.fillStyle = '#f1f1ef';
+  g.fillRect(0, 0, N, N);
+  g.textBaseline = 'alphabetic';
+  if (wordmark.naturalWidth) g.drawImage(wordmark, M, M - 6, 190, 190 * wordmark.naturalHeight / wordmark.naturalWidth);
+  const [y, m, d] = (r.date || '').split('-');
+  caps([notes.cat, d && `${d}.${m}.${y}`].filter(Boolean).join('  ·  '), N - M, M + 8, 15, GREY, 'right');
+
+  // the title without its guest: "Gistro (feat. Moonstar)" is GISTRO, and "feat. Moonstar" goes with the artist
+  const guest = r.title.match(/\s*\(?\b(feat\.?|ft\.|with)\s+([^)]+)\)?\s*$/i);
+  const title = (guest ? r.title.slice(0, guest.index) : r.title).toUpperCase();
+  let size = 190;
+  g.font = `${size}px "Impact VV", Impact, "Arial Black", sans-serif`;
+  size = Math.min(size, size * (N - 2 * M) / (g.measureText(title).width * 1.8));
+  let top = M + 44;
+  g.drawImage(outlined(title, size, Math.max(3, size * 0.03)), M - 8, top - 8);
+  top += size * 0.86 + 50;
+  g.font = '700 27px Inter';
+  g.fillStyle = INK;
+  g.textAlign = 'left';
+  g.fillText(r.artist.toUpperCase(), M, top);
+  if (guest) {
+    const x = M + g.measureText(r.artist.toUpperCase()).width + 14;
+    g.font = '500 27px Inter';
+    g.fillStyle = '#555';
+    g.fillText(`feat. ${guest[2].trim()}`, x, top);
+  }
+  if (notes.caption) caps(`${notes.caption}  ·  Visceral Vaults`, N - M, top, 14, GREY, 'right');
+  top += 26;
+  g.fillStyle = '#cfcfcc';
+  g.fillRect(M, top, N - 2 * M, 2);
+  top += 40;
+
+  // the photo: cropped to fill a tall frame down the left
+  const bottom = N - M - 52;
+  const pw = 318, ph = bottom - top;
+  if (photo.naturalWidth) {
+    const want = pw / ph, have = photo.naturalWidth / photo.naturalHeight;
+    const sw = have > want ? photo.naturalHeight * want : photo.naturalWidth;
+    const sh = have > want ? photo.naturalHeight : photo.naturalWidth / want;
+    g.drawImage(photo, (photo.naturalWidth - sw) / 2, (photo.naturalHeight - sh) * 0.3, sw, sh, M, top, pw, ph);
+  }
+
+  // the words, beside it: shrink everything together until the release and the track fit
+  const x = M + pw + 40, w = N - M - x;
+  const tracks = r.tracks || [];
+  for (let k = 1; k > 0.6; k -= 0.04) {
+    const lede = 27 * k, body = 19 * k;
+    g.font = `500 ${lede}px Inter`;
+    const ledeLines = wrap(notes.text[0], w);
+    g.font = `400 ${body}px Inter`;
+    const bodyLines = notes.text.slice(1).map(p => wrap(p, w));
+    const trackH = 26 + tracks.length * 34;
+    const need = 34 + ledeLines.length * lede * 1.32 + 18 + bodyLines.reduce((a, l) => a + l.length * body * 1.5 + 14, 0) + trackH;
+    if (need > ph && k > 0.64) continue;
+    let ty = top + 12;
+    caps('Press release', x, ty, 13, GREY);
+    ty += 22 + lede;
+    g.font = `500 ${lede}px Inter`;
+    g.fillStyle = INK;
+    for (const l of ledeLines) { g.fillText(l, x, ty); ty += lede * 1.32; }
+    ty += 18 - lede * 0.32;
+    g.font = `400 ${body}px Inter`;
+    g.fillStyle = '#3a3a3a';
+    for (const para of bodyLines) {
+      ty += body;
+      for (const l of para) { g.fillText(l, x, ty); ty += body * 1.5; }
+      ty += 14 - body * 0.5;
+    }
+    // the track(s), along the bottom of the column
+    let ry = bottom - tracks.length * 34 + 4;
+    g.fillStyle = '#cfcfcc';
+    g.fillRect(x, ry - 30, w, 2);
+    tracks.forEach((name, i) => {
+      caps(String(i + 1).padStart(2, '0'), x, ry, 15, GREY, 'left', 0.1);
+      g.font = '600 21px Inter';
+      g.fillStyle = INK;
+      g.fillText(name, x + 40, ry);
+      if (r.lengths?.[i]) { g.font = '500 18px Inter'; g.fillStyle = '#666'; g.textAlign = 'right'; g.fillText(r.lengths[i], x + w, ry); g.textAlign = 'left'; }
+      ry += 34;
+    });
+    break;
+  }
+  // the credits along the foot
+  caps([r.credit, `℗ & © ${y || new Date().getFullYear()} Visceral Vaults, a sublabel of Fractal Fantasy`].filter(Boolean).join('   ·   '), M, N - M, 12, '#6a6a6a', 'left', 0.12);
 }
 
 // ---------------------------------------------------------------- state
