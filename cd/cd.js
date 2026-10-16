@@ -575,8 +575,10 @@ const texture = (url, srgb) => {
   t.anisotropy = renderer.capabilities.getMaxAnisotropy();
   return t;
 };
+// a booklet's front where it differs from the site's cover (JASHIM's with its parental advisory label)
+const BOOKLETS = { jashim: 'booklets/jashim.jpg' };
 const covers = releases.map(r => {
-  const cover = texture(`../${r.cover}`, true);
+  const cover = texture(BOOKLETS[r.id] ?? `../${r.cover}`, true);
   return DISCS[r.id]
     ? { cover, art: texture(`discs/${r.id}.webp`, true), relief: texture(`discs/${r.id}-relief.webp`, false), metal: DISCS[r.id].metal }
     : { cover, art: cover, relief: null, metal: [1, 1, 1] };
