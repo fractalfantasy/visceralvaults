@@ -774,7 +774,7 @@ const state = {
   open: 0, openTarget: 0,
   spin: false, spinSpeed: 0, discAngle: 0,
   yaw: -0.35, pitch: 0, yawVel: 0, pitchVel: 0,
-  scale: 1, swap: null, idle: 0, discOutTarget: 0, out: 0, driftYaw: 0, driftPitch: 0,
+  scale: 1, swap: null, idle: 0, discOutTarget: 0, out: 0, discTilt: new THREE.Vector2(), discVel: new THREE.Vector2(), driftYaw: 0, driftPitch: 0,
 };
 
 function setRelease(i) {
@@ -818,6 +818,11 @@ function setDiscOut(on) {
     hideHint();
     playRelease(state.index);
   }
+}
+// the disc out: a drag tilts it, up to about 40 degrees either way on each axis (x: about the screen's horizontal)
+const DISC_TILT = THREE.MathUtils.degToRad(40);
+function turnDisc(v) {
+  state.discTilt.add(v).clampScalar(-DISC_TILT, DISC_TILT);
 }
 function playRelease(i) {
   if (!player) return;
@@ -967,10 +972,11 @@ const pointer = new THREE.Vector2();
 function hitWhat(x, y) {
   pointer.set((x / innerWidth) * 2 - 1, -(y / innerHeight) * 2 + 1);
   raycaster.setFromCamera(pointer, camera);
-  const hit = raycaster.intersectObjects(parts, false)[0];
-  if (!hit) return null;
-  for (let o = hit.object; o; o = o.parent) if (o === disc) return 'disc';
-  return 'case';
+  const hits = raycaster.intersectObjects(parts, false);
+  if (!hits.length) return null;
+  // whatever lies over the disc is clear plastic, so a ray through the disc anywhere along it touches the disc
+  const onDisc = (o) => { for (; o; o = o.parent) if (o === disc) return true; return false; };
+  return hits.some(h => onDisc(h.object)) ? 'disc' : 'case';
 }
 const hitsCase = (x, y) => hitWhat(x, y) !== null;
 let drag = null;
@@ -1036,7 +1042,11 @@ canvas.addEventListener('pointermove', (e) => {
     canvas.classList.add('dragging');
     hideHint();
   }
-  if (drag.moved && state.discOutTarget < 0.5) {
+  if (drag.moved && state.discOutTarget > 0.5) {
+    const v = new THREE.Vector2(dy, dx).multiplyScalar(0.006);
+    turnDisc(v);
+    state.discVel.copy(v).multiplyScalar(60);
+  } else if (drag.moved) {
     state.yaw += dx * 0.009;
     state.pitch = THREE.MathUtils.clamp(state.pitch + dy * 0.006, -0.9, 0.55);
     state.yawVel = dx * 0.009 * 60;
@@ -1060,7 +1070,7 @@ const endDrag = (e) => {
     else if (performance.now() - lastTap.t < 350 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 40) resetView();
     lastTap = { t: performance.now(), x: e.clientX, y: e.clientY };
   }
-  if (!drag.moved) state.yawVel = state.pitchVel = 0;
+  if (!drag.moved) { state.yawVel = state.pitchVel = 0; state.discVel.set(0, 0); }
   drag = null;
   canvas.classList.remove('dragging');
 };
@@ -1128,6 +1138,12 @@ renderer.setAnimationLoop(() => {
     state.pitchVel *= Math.exp(-dt * 3.2);
     state.pitch += (0 - state.pitch) * Math.min(1, dt * 0.8);
   }
+  // the disc out coasts after a drag and eases back to face the screen; on its way back in it squares up quicker
+  if (!drag) {
+    turnDisc(state.discVel.clone().multiplyScalar(dt));
+    state.discVel.multiplyScalar(Math.exp(-dt * 3.2));
+    state.discTilt.multiplyScalar(1 - Math.min(1, dt * (state.discOutTarget > 0.5 ? 0.8 : 4)));
+  }
   const turn = portrait ? 0.24 : 0;                 // a tall screen: less of a three-quarter view, to fill the width
   disc.rotation.set(0, 0, state.discAngle - turn);  // the disc's art stays upright
   // Left alone for a few seconds, the case drifts: a slow, small turn and tilt (two slow waves, so it never quite
@@ -1172,7 +1188,7 @@ renderer.setAnimationLoop(() => {
     const fill = 0.86 * Math.min(camera.aspect, 1) * (camera.aspect < 1 ? 1 : 0.8);
     const distance = 2 * DISC / (fill * 2 * tanHalf);
     const to = camera.position.clone().addScaledVector(toward, distance).addScaledVector(cameraUp, distance * tanHalf * 0.06);
-    const toQ = camera.quaternion.clone().multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), state.discAngle));
+    const toQ = camera.quaternion.clone().multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(state.discTilt.x, state.discTilt.y, 0, 'YXZ'))).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), state.discAngle));
     const at = from.clone().lerp(to, lift).addScaledVector(cameraUp, Math.sin(Math.PI * lift) * 25);
     const local = new THREE.Matrix4().compose(at, fromQ.clone().slerp(toQ, lift), unit)
       .premultiply(disc.parent.matrixWorld.clone().invert());
