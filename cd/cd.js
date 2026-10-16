@@ -16,6 +16,19 @@ const PAGE = 0xf6 / 255; // the page's grey (#f6f6f4, near enough)
 
 // ---------------------------------------------------------------- the releases
 const releases = await fetch('../data/releases.json').then(r => r.json());
+// JASHIM's two singles get CDs of their own here (covers and words from the press page), next to the album
+const SINGLES = [
+  { id: 'yo-se', of: 'jashim', song: 0, title: 'Yo Sé', artist: 'JASHIM', date: '2026-10-02', cover: 'jashim/img/single-yo-se.jpg',
+    links: [{ label: 'Listen', href: 'https://visceralvaults.lnk.to/YoSe' }] },
+  { id: 'gistro', of: 'jashim', song: 3, title: 'Gistro (feat. Moonstar)', artist: 'JASHIM', date: '2026-10-16', cover: 'jashim/img/single-2.jpg',
+    links: [{ label: 'Listen', href: 'https://VisceralVaults.lnk.to/Gistro' }] },
+];
+for (const single of SINGLES.slice().reverse()) {
+  const album = releases.find(r => r.id === single.of);
+  if (!album) continue;
+  Object.assign(single, { audio: [album.audio[single.song]], tracks: [album.tracks[single.song]], lengths: [album.lengths?.[single.song]], credit: album.credit });
+  releases.splice(releases.indexOf(album) + 1, 0, single);
+}
 
 // ---------------------------------------------------------------- renderer, camera, studio
 const canvas = document.createElement('canvas');
@@ -568,6 +581,8 @@ const loader = new THREE.TextureLoader();
 // has its cover printed on a silver disc.
 const DISCS = {
   'jashim': { metal: [0.93, 0.97, 1.0] },          // icy silver
+  'yo-se': { metal: [0.8, 0.96, 1.0] },            // icy cyan
+  'gistro': { metal: [0.62, 0.92, 0.92] },         // teal
   'ww4': { metal: [0.76, 0.85, 1.0] },             // blue-lit chrome
   'worst-vocal-dub': { metal: [0.6, 0.74, 1.0] },  // the blue smoke
   'yea-hoe-mixes': { metal: [0.42, 0.43, 0.46] },  // gunmetal, for the dark rock
@@ -594,6 +609,16 @@ const covers = releases.map(r => {
 // Set like the label's press pages: the wordmark and the date, the title in Impact stretched 180% wide, the
 // artists, the tracklist, the credits; for a release with a press release, its opening paragraphs too.
 const NOTES = {
+  'yo-se': {
+    cat: 'Single',
+    text: ['JASHIM’s first single introduces the world of his self-titled debut: a hazy, sensual Latin club track built around beautiful micromelodies, a rolling dembow rhythm, and the intimate chemistry of a summer night.',
+      'Smooth rhodes chords float above a deep UK bassline, creating a contrast between warmth and low-end pressure.'],
+  },
+  gistro: {
+    cat: 'Single',
+    text: ['“GISTRO” is the second single from JASHIM’s self-titled LP, pushing the project deeper into JASHIM’s club universe with a high-energy Neoperreo track produced by Sinjin Hawke.',
+      'Legendary Montreal Vogue commentator Moonstar delivers cunty ballroom vocals that turn the track into a call-to-action for baddies.'],
+  },
   jashim: {
     cat: 'VV007',
     text: [
@@ -749,7 +774,7 @@ const state = {
   open: 0, openTarget: 0,
   spin: false, spinSpeed: 0, discAngle: 0,
   yaw: -0.35, pitch: 0, yawVel: 0, pitchVel: 0,
-  scale: 1, swap: null, idle: 0, driftYaw: 0, driftPitch: 0,
+  scale: 1, swap: null, idle: 0, discOutTarget: 0, out: 0, driftYaw: 0, driftPitch: 0,
 };
 
 function setRelease(i) {
@@ -783,15 +808,36 @@ function show(i, { open = false } = {}) {
 
 function setOpen(on) {
   state.openTarget = on ? 1 : 0;
-  $('open').setAttribute('aria-pressed', String(on));
+  if (!on) setDiscOut(false);
 }
+// the disc out of its case, filling the screen (and the release playing), or back in
+function setDiscOut(on) {
+  if ((state.discOutTarget > 0.5) === on) return;
+  state.discOutTarget = on ? 1 : 0;
+  if (on) {
+    hideHint();
+    playRelease(state.index);
+  }
+}
+function playRelease(i) {
+  if (!player) return;
+  const entry = entries.findIndex(e => e.release === releases[i]);
+  if (entry < 0) return;
+  if (entries[player.currentPlaylistIndex].release !== releases[i]) {
+    shownEntry = entry;
+    credits(releases[i]);
+    player.playSong(entry);
+  } else if (player.song.paused) {
+    player.play();
+  }
+}
+
 function toggleOpen() {
   setOpen(state.openTarget < 0.5);
   hideHint();
 }
 function toggleSpin() {
   state.spin = !state.spin;
-  $('spin').setAttribute('aria-pressed', String(state.spin));
 }
 
 // ---------------------------------------------------------------- the FF player (as on visceralvaults.com)
@@ -807,8 +853,13 @@ const PLATFORMS = [['spotify', 'Spotify'], ['appleMusic', 'Apple Music'], ['yout
 const releaseLinks = (r) => PLATFORMS.filter(([k]) => r[k]).map(([k, label]) => [label, r[k]])
   .concat((r.links || []).map(l => [l.label, l.href]));
 
+const todayISO = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
+// each song once: until an album is out, a song that's also a single plays from the single's CD; then from the album's
+const albumOut = (id) => (releases.find(r => r.id === id)?.date ?? '') <= todayISO;
+const ownedBySingle = (release, i) => SINGLES.some(s => s.of === release.id && s.song === i && releases.includes(s) && !albumOut(release.id));
 const entries = releases.flatMap(release => (release.tracks || []).map((_, i) => ({ release, i })))
-  .filter(({ release, i }) => release.audio?.[i] && canPlay(release, i));
+  .filter(({ release, i }) => release.audio?.[i] && canPlay(release, i))
+  .filter(({ release, i }) => (release.of ? !albumOut(release.of) && release.date <= todayISO : !ownedBySingle(release, i)));
 let player = null;
 let shownEntry = -1;
 if (typeof FFPlayer !== 'undefined' && entries.length) {
@@ -881,13 +932,12 @@ releases.forEach((r, i) => {
   b.addEventListener('click', () => pick(i));
   dock.appendChild(b);
 });
-$('open').addEventListener('click', toggleOpen);
-$('spin').addEventListener('click', toggleSpin);
 $('dark').addEventListener('click', () => setDark(!document.body.classList.contains('dark')));
 addEventListener('keydown', (e) => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const k = e.key.toLowerCase();
-  if (k === 'o') toggleOpen();
+  if (k === 'escape') setDiscOut(false);
+  else if (k === 'o') toggleOpen();
   else if (k === 's') toggleSpin();
   else if (k === 'b') setDark(!document.body.classList.contains('dark'));
   else if ((k === 'p' || k === ' ') && player) { e.preventDefault(); player.togglePlay(); }
@@ -914,11 +964,15 @@ function hideHint() {
 // ---------------------------------------------------------------- tap to open, drag to turn
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
-function hitsCase(x, y) {
+function hitWhat(x, y) {
   pointer.set((x / innerWidth) * 2 - 1, -(y / innerHeight) * 2 + 1);
   raycaster.setFromCamera(pointer, camera);
-  return raycaster.intersectObjects(parts, false).length > 0;
+  const hit = raycaster.intersectObjects(parts, false)[0];
+  if (!hit) return null;
+  for (let o = hit.object; o; o = o.parent) if (o === disc) return 'disc';
+  return 'case';
 }
+const hitsCase = (x, y) => hitWhat(x, y) !== null;
 let drag = null;
 let lastTouch = performance.now();
 for (const type of ['pointerdown', 'pointermove', 'keydown', 'wheel']) addEventListener(type, () => { if (type !== 'pointermove' || drag || pinch) lastTouch = performance.now(); }, { passive: true });
@@ -982,7 +1036,7 @@ canvas.addEventListener('pointermove', (e) => {
     canvas.classList.add('dragging');
     hideHint();
   }
-  if (drag.moved) {
+  if (drag.moved && state.discOutTarget < 0.5) {
     state.yaw += dx * 0.009;
     state.pitch = THREE.MathUtils.clamp(state.pitch + dy * 0.006, -0.9, 0.55);
     state.yawVel = dx * 0.009 * 60;
@@ -999,7 +1053,10 @@ const endDrag = (e) => {
   }
   if (!drag) return;
   if (!drag.moved && performance.now() - drag.t < 500) {
-    if (hitsCase(e.clientX, e.clientY)) toggleOpen();
+    const hit = hitWhat(e.clientX, e.clientY);
+    if (state.discOutTarget > 0.5) setDiscOut(false);                        // out: any tap puts it back
+    else if (hit === 'disc' && state.openTarget > 0.5) setDiscOut(true);     // the disc in an open case: out it comes
+    else if (hit) toggleOpen();
     else if (performance.now() - lastTap.t < 350 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 40) resetView();
     lastTap = { t: performance.now(), x: e.clientX, y: e.clientY };
   }
@@ -1054,7 +1111,8 @@ renderer.setAnimationLoop(() => {
     const fov = THREE.MathUtils.lerp(baseFov, openFov, ease(THREE.MathUtils.clamp(o, 0, 1)));
     if (Math.abs(camera.fov - fov) > 0.01) { camera.fov = fov; camera.updateProjectionMatrix(); }
   }
-  disc.position.z = -1.0 + 1.6 * Math.max(0, o - 0.6); // the disc rises a hair off the rosette once open
+  disc.position.set(0, 0, -1.0 + 1.6 * Math.max(0, o - 0.6)); // the disc rises a hair off the rosette once open
+  disc.scale.setScalar(1);
 
   // the disc: spins up and down smoothly (and while the music plays)
   followPlayer();
@@ -1071,7 +1129,7 @@ renderer.setAnimationLoop(() => {
     state.pitch += (0 - state.pitch) * Math.min(1, dt * 0.8);
   }
   const turn = portrait ? 0.24 : 0;                 // a tall screen: less of a three-quarter view, to fill the width
-  disc.rotation.z = state.discAngle - turn;         // the disc's art stays upright
+  disc.rotation.set(0, 0, state.discAngle - turn);  // the disc's art stays upright
   // Left alone for a few seconds, the case drifts: a slow, small turn and tilt (two slow waves, so it never quite
   // repeats) that walks the studio's highlights across the lid and the disc. A touch takes over at once.
   const idleFor = (performance.now() - lastTouch) / 1000;
@@ -1081,7 +1139,7 @@ renderer.setAnimationLoop(() => {
   state.driftYaw = driftYaw;
   state.driftPitch = driftPitch;
   caseRoot.rotation.set(state.pitch + driftPitch + Math.sin(time * 0.6) * 0.012, turn + state.yaw + driftYaw, 0, 'YXZ');
-  caseRoot.position.y = 14 + Math.sin(time * 0.8) * 1.2;
+  caseRoot.position.set(0, 14 + Math.sin(time * 0.8) * 1.2, 0);
 
   // changing release: out (shrink, a quarter turn), swap the disc, back in with a bounce
   if (state.swap) {
@@ -1098,6 +1156,28 @@ renderer.setAnimationLoop(() => {
     caseRoot.rotation.y += (1 - state.scale) * 0.9;
   }
   caseRoot.scale.setScalar(Math.max(0.001, state.scale));
+
+  // The disc out: it leaves the tray on a small arc, turns to face the camera and comes up to fill the screen
+  // (the full width of a phone, the height of a wide screen, short of the bars), spinning; the case moves up
+  // and back out of its way.
+  state.out += (state.discOutTarget - state.out) * Math.min(1, dt * 3.2);
+  const lift = ease(THREE.MathUtils.clamp(state.out, 0, 1));
+  if (lift > 0.0005) {
+    const toward = camera.getWorldDirection(new THREE.Vector3());
+    caseRoot.position.addScaledVector(cameraUp, (camera.aspect < 1 ? 170 : 75) * lift).addScaledVector(toward, 140 * lift);
+    caseRoot.updateMatrixWorld(true);
+    const from = new THREE.Vector3(), fromQ = new THREE.Quaternion(), unit = new THREE.Vector3();
+    disc.matrixWorld.decompose(from, fromQ, unit);
+    const tanHalf = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) / camera.zoom;
+    const fill = 0.86 * Math.min(camera.aspect, 1) * (camera.aspect < 1 ? 1 : 0.8);
+    const distance = 2 * DISC / (fill * 2 * tanHalf);
+    const to = camera.position.clone().addScaledVector(toward, distance).addScaledVector(cameraUp, distance * tanHalf * 0.06);
+    const toQ = camera.quaternion.clone().multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), state.discAngle));
+    const at = from.clone().lerp(to, lift).addScaledVector(cameraUp, Math.sin(Math.PI * lift) * 25);
+    const local = new THREE.Matrix4().compose(at, fromQ.clone().slerp(toQ, lift), unit)
+      .premultiply(disc.parent.matrixWorld.clone().invert());
+    local.decompose(disc.position, disc.quaternion, disc.scale);
+  }
 
   renderer.setRenderTarget(hdr);
   renderer.render(scene, camera);

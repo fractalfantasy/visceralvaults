@@ -16,7 +16,6 @@
 <style>
   :root { --ink: #111; --dim: #8a8a8a; --line: #e4e4e2; --page: #f6f6f4; --dock: rgba(255, 255, 255, .82); --bar: 60px; }
   body.dark { --ink: #f2f2f2; --dim: #8a8a8a; --line: #2a2a2a; --page: #000; --dock: rgba(18, 18, 18, .82); }
-  body.dark .tool { background: #f2f2f2; color: #000; }
   .corner .on-dark { display: none; }
   body.dark .corner .on-dark { display: block; }
   body.dark .corner .on-light { display: none; }
@@ -31,7 +30,11 @@
   .corner { position: fixed; top: max(18px, env(safe-area-inset-top)); left: 20px; z-index: 2; }
   .corner a { display: block; }
   .corner img { width: 132px; display: block; }
-  .release { position: fixed; top: max(18px, env(safe-area-inset-top)); right: 20px; z-index: 2; text-align: right; }
+  .release { position: fixed; top: max(18px, env(safe-area-inset-top)); right: 70px; z-index: 2; text-align: right; }
+  /* the light / dark switch, in the top right corner */
+  .mode { position: fixed; top: max(14px, env(safe-area-inset-top)); right: 16px; z-index: 3; width: 34px; height: 34px; border: 0;
+    border-radius: 50%; cursor: pointer; display: grid; place-items: center; background: var(--ink); color: var(--page); }
+  .mode svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; }
   .release b { display: block; font-weight: 700; font-size: 14px; letter-spacing: .02em; }
   .release span { color: var(--dim); }
 
@@ -50,18 +53,11 @@
   .thumb::after { content: ''; position: absolute; inset: 15px; border-radius: 50%; background: var(--page); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .1); }
   .thumb:hover { transform: scale(1.06); }
   .thumb[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: 2px; }
-  .divider { width: 1px; height: 26px; background: var(--line); margin: 0 4px; flex: none; }
-  .tool { flex: none; width: 40px; height: 40px; border: 0; border-radius: 50%; cursor: pointer; display: grid; place-items: center;
-    background: var(--ink); color: #fff; }
-  .tool svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-  .tool .on { display: none; }
-  .tool[aria-pressed="true"] .on { display: block; }
-  .tool[aria-pressed="true"] .off { display: none; }
-  .tool:focus-visible, .thumb:focus-visible { outline: 2px solid #4a7dff; outline-offset: 2px; }
+  .mode:focus-visible, .thumb:focus-visible { outline: 2px solid #4a7dff; outline-offset: 2px; }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   .fail { position: fixed; inset: 0; display: none; place-items: center; text-align: center; padding: 24px; color: var(--dim); }
   /* the FF player bar along the bottom (as on visceralvaults.com): black, a back button at its left */
-  #timeline { background: #f5f5f5; }
+  #timeline { background: #d4d4d4; } /* the label's light grey, on the white bar and the black one */
   #credits { color: white; mix-blend-mode: difference; }
   #credits a:link, #credits a:visited { color: white; }
   .ffplayer .back { position: fixed; left: 0; bottom: 0; width: 45px; height: 60px; border: none; outline: none; cursor: pointer;
@@ -75,7 +71,6 @@
      read across it, by the difference blend), the link list white; on black it stays as it is */
   body:not(.dark) #audioplayer { background-color: #fff; border-top: 1px solid var(--line); }
   body:not(.dark) #pButton, body:not(.dark) .ffplayer .next, body:not(.dark) .ffplayer .back { filter: invert(1); }
-  body:not(.dark) #timeline { background: #161616; }
   body:not(.dark) #volumeContainer { filter: invert(1); }
   body:not(.dark) .ffplayer-links { background-color: #fff; border-color: var(--line); }
   body:not(.dark) .ffplayer-links a { color: #555; }
@@ -84,7 +79,7 @@
     .corner img { width: 108px; }
     .release { top: auto; bottom: calc(var(--bar) + 140px + env(safe-area-inset-bottom)); left: 20px; right: 20px; text-align: center; }
     .hint { bottom: calc(var(--bar) + 78px + env(safe-area-inset-bottom)); }
-    .thumb, .tool { width: 36px; height: 36px; }
+    .thumb { width: 36px; height: 36px; }
     .thumb::after { inset: 13px; }
   }
 </style>
@@ -98,16 +93,11 @@
 <body>
 <div class="corner"><a href="/" aria-label="Visceral Vaults home"><img class="on-light" src="../assets/img/site/visceral-vaults-wordmark.png" alt="VISCERAL VAULTS"><img class="on-dark" src="../assets/img/site/visceral-vaults-wordmark-grey.png" alt=""></a></div>
 <div class="release" aria-live="polite"><b id="title"></b><span id="artist"></span></div>
-<div class="hint" id="hint">Tap the case to open it · drag to turn it · pinch to zoom</div>
+<div class="hint" id="hint">Tap the case to open it, and the disc to play it · drag to turn it · pinch to zoom</div>
+<button class="mode" id="dark" aria-pressed="false" title="Light / dark (B)"><span class="sr">Black background</span>
+  <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5"/><path d="M12 4.5a7.5 7.5 0 0 0 0 15z" fill="currentColor"/></svg></button>
 <div class="dock" role="toolbar" aria-label="CD">
   <div class="covers" id="covers"></div>
-  <div class="divider"></div>
-  <button class="tool" id="open" aria-pressed="false" title="Open (O)"><span class="sr">Open the case</span>
-    <svg viewBox="0 0 24 24"><path class="off" d="M5 19V5h9l5 5v9z"/><path class="on" d="M5 19V5h14v14z M5 5l7 7"/></svg></button>
-  <button class="tool" id="spin" aria-pressed="false" title="Spin (S)"><span class="sr">Spin the disc</span>
-    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2"/><path d="M12 4a8 8 0 0 1 8 8"/></svg></button>
-  <button class="tool" id="dark" aria-pressed="false" title="Background (B)"><span class="sr">Black background</span>
-    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5"/><path d="M12 4.5a7.5 7.5 0 0 0 0 15z" fill="currentColor"/></svg></button>
 </div>
 <div class="fail" id="fail">This page needs WebGL, and the browser couldn't start it.</div>
 <script src="https://fractalfantasy.net/libs/ffplayer/ffplayer-unified.js"></script>
