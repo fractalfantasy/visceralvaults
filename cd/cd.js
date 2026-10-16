@@ -935,9 +935,7 @@ const dock = $('covers');
 releases.forEach((r, i) => {
   const b = document.createElement('button');
   b.className = 'thumb';
-  b.style.backgroundImage = DISCS[r.id]
-    ? `url("discs/${r.id}.webp"), radial-gradient(rgb(${DISCS[r.id].metal.map(v => Math.round(v * 225)).join(',')}), #bbb)`
-    : `url("../${r.cover}")`;
+  b.style.backgroundImage = `url("../${BOOKLETS[r.id] ? `cd/${BOOKLETS[r.id]}` : r.cover}")`;
   b.title = `${r.title} — ${r.artist}`;
   b.setAttribute('aria-label', `${r.title} by ${r.artist}`);
   b.addEventListener('click', () => pick(i));
