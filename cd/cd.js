@@ -39,8 +39,14 @@ const pageLinear = shoulderInverse(Math.pow((PAGE + 0.055) / 1.055, 2.4));
 scene.background = new THREE.Color().setRGB(pageLinear, pageLinear, pageLinear * 0.995, THREE.LinearSRGBColorSpace);
 
 const camera = new THREE.PerspectiveCamera(26, 1, 20, 4000);
-camera.position.set(0, 520, 360);
-camera.lookAt(0, 0, 8);
+const cameraHome = new THREE.Vector3(0, 520, 360);
+const cameraTarget = new THREE.Vector3(0, 0, 8);
+camera.position.copy(cameraHome);
+camera.lookAt(cameraTarget);
+camera.updateMatrixWorld();
+const cameraRight = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
+const cameraUp = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
+const panned = { x: 0, y: 0 };
 
 const pmrem = new THREE.PMREMGenerator(renderer);
 const room = new RoomEnvironment();
@@ -539,7 +545,7 @@ function resize() {
   // A case opens sideways, the lid to the left, on every screen. On a tall one the closed case fills the width,
   // and the camera pulls back as the lid opens so both halves fit across.
   portrait = camera.aspect < 0.85;
-  const distance = camera.position.distanceTo(new THREE.Vector3(0, 0, 8));
+  const distance = cameraHome.distanceTo(cameraTarget);
   const fit = (halfWidth) => THREE.MathUtils.radToDeg(2 * Math.atan(halfWidth / (distance * camera.aspect)));
   baseFov = portrait ? fit(84) : THREE.MathUtils.clamp(26 * Math.max(1, 1.25 / camera.aspect), 26, 52);
   openFov = portrait ? fit(158) : baseFov;
@@ -606,6 +612,37 @@ const fontsReady = (async () => {
 })();
 const wordmark = new Image();
 wordmark.src = '../assets/img/site/visceral-vaults-wordmark-grey.png';
+// A title as the label sets Impact on white: stretched 180% wide and hollow, an even outline all round. The
+// letters are drawn solid and stretched, then hollowed: grown by half the line's width (copies all round) less
+// shrunk by the same (where all those copies still overlap), so the line is as thick on the verticals as across.
+function outlined(text, size, line) {
+  const pad = 8;
+  const probe = document.createElement('canvas').getContext('2d');
+  probe.font = `${size}px "Impact VV", Impact, "Arial Black", sans-serif`;
+  const w = Math.ceil(probe.measureText(text).width * 1.8) + 2 * pad, h = Math.ceil(size * 1.05) + 2 * pad;
+  const layer = () => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+  const solid = layer();
+  const sg = solid.getContext('2d');
+  sg.font = probe.font;
+  sg.fillStyle = '#111';
+  sg.save();
+  sg.translate(pad, pad + size * 0.86);
+  sg.scale(1.8, 1);
+  sg.fillText(text, 0, 0);
+  sg.restore();
+  const grown = layer(), shrunk = layer();
+  const gg = grown.getContext('2d'), kg = shrunk.getContext('2d');
+  kg.drawImage(solid, 0, 0);
+  kg.globalCompositeOperation = 'destination-in';
+  for (let i = 0; i < 24; i++) {
+    const a = (i / 24) * Math.PI * 2, x = Math.cos(a) * line / 2, y = Math.sin(a) * line / 2;
+    gg.drawImage(solid, x, y);
+    kg.drawImage(solid, x, y);
+  }
+  gg.globalCompositeOperation = 'destination-out';
+  gg.drawImage(shrunk, 0, 0);
+  return grown;
+}
 const insidePages = new Map();
 function insidePage(r) {
   if (insidePages.has(r.id)) return insidePages.get(r.id);
@@ -640,11 +677,7 @@ function insidePage(r) {
     const w = g.measureText(r.title.toUpperCase()).width * 1.8;
     size = Math.min(150, size * (N - 2 * M) / w);
     g.font = `${size}px "Impact VV", Impact, "Arial Black", sans-serif`;
-    g.save();
-    g.translate(M, M + 40 + size * 0.86);
-    g.scale(1.8, 1);
-    g.fillText(r.title.toUpperCase(), 0, 0);
-    g.restore();
+    g.drawImage(outlined(r.title.toUpperCase(), size, Math.max(3, size * 0.034)), M - 8, M + 40 - 8);
     let top = M + 40 + size * 0.86 + 52;
     g.font = '600 26px Inter';
     g.fillText(r.artist, M, top);
@@ -888,18 +921,57 @@ function hitsCase(x, y) {
 }
 let drag = null;
 let lastTouch = performance.now();
-for (const type of ['pointerdown', 'pointermove', 'keydown', 'wheel']) addEventListener(type, () => { if (type !== 'pointermove' || drag) lastTouch = performance.now(); }, { passive: true });
+for (const type of ['pointerdown', 'pointermove', 'keydown', 'wheel']) addEventListener(type, () => { if (type !== 'pointermove' || drag || pinch) lastTouch = performance.now(); }, { passive: true });
+
+// The view: one finger (or the mouse) turns the case and a tap opens it; two fingers pinch to zoom and move
+// together to pan. On a trackpad, pinching zooms and a two-finger scroll pans; a mouse wheel zooms. A double
+// click or a double tap off the case puts the view back.
+const view = { zoom: 1, panX: 0, panY: 0 };   // pan in millimetres, across the camera's own picture
+const pointers = new Map();
+let pinch = null;
+const mmPerPixel = () => (2 * cameraHome.distanceTo(cameraTarget) * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2)) / (camera.zoom * innerHeight);
+function panBy(dxPx, dyPx) {
+  const k = mmPerPixel();
+  view.panX = THREE.MathUtils.clamp(view.panX - dxPx * k, -260, 260);
+  view.panY = THREE.MathUtils.clamp(view.panY + dyPx * k, -260, 260);
+}
+function zoomBy(factor) {
+  view.zoom = THREE.MathUtils.clamp(view.zoom * factor, 0.6, 3.2);
+}
+function twoFingers() {
+  const [a, b] = [...pointers.values()];
+  return { dist: Math.hypot(a.x - b.x, a.y - b.y), x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+}
+
 canvas.addEventListener('pointerdown', (e) => {
-  canvas.setPointerCapture(e.pointerId);
+  try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* a pointer the browser no longer tracks */ }
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   // take the case over from wherever its drift has it, without a jump
   state.yaw += state.driftYaw;
   state.pitch += state.driftPitch;
   state.driftYaw = state.driftPitch = state.idle = 0;
-  drag = { x: e.clientX, y: e.clientY, startX: e.clientX, startY: e.clientY, t: performance.now(), moved: false };
+  if (pointers.size === 2) {
+    // a second finger: stop turning (no tap either), start pinching and panning
+    drag = null;
+    state.yawVel = state.pitchVel = 0;
+    canvas.classList.remove('dragging');
+    pinch = twoFingers();
+    hideHint();
+    return;
+  }
+  if (pointers.size === 1) drag = { x: e.clientX, y: e.clientY, startX: e.clientX, startY: e.clientY, t: performance.now(), moved: false };
 });
 canvas.addEventListener('pointermove', (e) => {
+  if (pointers.has(e.pointerId)) pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pinch && pointers.size >= 2) {
+    const now = twoFingers();
+    if (pinch.dist > 0) zoomBy(now.dist / pinch.dist);
+    panBy(now.x - pinch.x, now.y - pinch.y);
+    pinch = now;
+    return;
+  }
   if (!drag) {
-    canvas.classList.toggle('over', hitsCase(e.clientX, e.clientY));
+    if (e.pointerType === 'mouse') canvas.classList.toggle('over', hitsCase(e.clientX, e.clientY));
     return;
   }
   const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
@@ -917,15 +989,39 @@ canvas.addEventListener('pointermove', (e) => {
     state.pitchVel = dy * 0.006 * 60;
   }
 });
+let lastTap = { t: 0, x: 0, y: 0 };
 const endDrag = (e) => {
+  pointers.delete(e.pointerId);
+  if (pinch) {
+    // lifting one of two fingers ends the pinch; the finger left doesn't start turning the case
+    if (pointers.size < 2) pinch = null;
+    return;
+  }
   if (!drag) return;
-  if (!drag.moved && performance.now() - drag.t < 500 && hitsCase(e.clientX, e.clientY)) toggleOpen();
+  if (!drag.moved && performance.now() - drag.t < 500) {
+    if (hitsCase(e.clientX, e.clientY)) toggleOpen();
+    else if (performance.now() - lastTap.t < 350 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 40) resetView();
+    lastTap = { t: performance.now(), x: e.clientX, y: e.clientY };
+  }
   if (!drag.moved) state.yawVel = state.pitchVel = 0;
   drag = null;
   canvas.classList.remove('dragging');
 };
 canvas.addEventListener('pointerup', endDrag);
 canvas.addEventListener('pointercancel', endDrag);
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  lastTouch = performance.now();
+  const lines = e.deltaMode === 1 ? 16 : 1;
+  if (e.ctrlKey) zoomBy(Math.exp(-e.deltaY * lines * 0.01));                       // a trackpad pinch
+  else if (e.deltaX !== 0 || (Math.abs(e.deltaY) < 40 && !Number.isInteger(e.deltaY))) panBy(-e.deltaX * lines, -e.deltaY * lines); // a two-finger scroll
+  else zoomBy(Math.exp(-e.deltaY * lines * 0.0015));                               // a mouse wheel
+}, { passive: false });
+function resetView() {
+  view.zoom = 1;
+  view.panX = view.panY = 0;
+}
+canvas.addEventListener('dblclick', (e) => { if (!hitsCase(e.clientX, e.clientY)) resetView(); });
 
 // ---------------------------------------------------------------- the loop
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
@@ -935,6 +1031,16 @@ let openVel = 0;
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05);
   const time = clock.elapsedTime;
+
+  // the view eases to where the fingers (or the trackpad) put it
+  const follow = Math.min(1, dt * 12);
+  panned.x += (view.panX - panned.x) * follow;
+  panned.y += (view.panY - panned.y) * follow;
+  const offset = new THREE.Vector3().addScaledVector(cameraRight, panned.x).addScaledVector(cameraUp, panned.y);
+  camera.position.copy(cameraHome).add(offset);
+  camera.lookAt(new THREE.Vector3().copy(cameraTarget).add(offset));
+  const zoom = camera.zoom + (view.zoom - camera.zoom) * follow;
+  if (Math.abs(zoom - camera.zoom) > 1e-4) { camera.zoom = zoom; camera.updateProjectionMatrix(); }
 
   // the lid: a damped spring, so it settles open with a little give
   const k = 90, damp = 15;
