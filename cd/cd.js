@@ -781,7 +781,7 @@ const state = {
   open: 0, openTarget: 0,
   spin: false, spinSpeed: 0, discAngle: 0,
   yaw: -0.35, pitch: 0, yawVel: 0, pitchVel: 0,
-  scale: 1, swap: null, idle: 0, discOutTarget: 0, out: 0, discTilt: new THREE.Vector2(), discVel: new THREE.Vector2(), driftYaw: 0, driftPitch: 0,
+  scale: 1, swap: null, idle: 0, discOutTarget: 0, out: 0, lifted: 'disc', discTilt: new THREE.Vector2(), discVel: new THREE.Vector2(), driftYaw: 0, driftPitch: 0,
 };
 
 function setRelease(i) {
@@ -819,12 +819,17 @@ function setOpen(on) {
 }
 // the disc out of its case, filling the screen (and the release playing), or back in
 function setDiscOut(on) {
-  if ((state.discOutTarget > 0.5) === on) return;
-  state.discOutTarget = on ? 1 : 0;
-  if (on) {
-    hideHint();
-    playRelease(state.index);
-  }
+  if (on) liftOut('disc');
+  else state.discOutTarget = 0;
+}
+// the disc or the booklet out to the middle of the screen (what = 'disc' | 'booklet'); one at a time, so the other
+// has to be home first
+function liftOut(what) {
+  if (state.discOutTarget > 0.5 || (state.out > 0.02 && state.lifted !== what)) return;
+  state.lifted = what;
+  state.discOutTarget = 1;
+  hideHint();
+  if (what === 'disc') playRelease(state.index);
 }
 // the disc out: a drag tilts it, up to about 40 degrees either way on each axis (x: about the screen's horizontal)
 const DISC_TILT = THREE.MathUtils.degToRad(40);
@@ -978,9 +983,10 @@ function hitWhat(x, y) {
   raycaster.setFromCamera(pointer, camera);
   const hits = raycaster.intersectObjects(parts, false);
   if (!hits.length) return null;
-  // whatever lies over the disc is clear plastic, so a ray through the disc anywhere along it touches the disc
-  const onDisc = (o) => { for (; o; o = o.parent) if (o === disc) return true; return false; };
-  return hits.some(h => onDisc(h.object)) ? 'disc' : 'case';
+  // whatever lies over the disc or the booklet is clear plastic, so a ray through either anywhere along it touches it
+  const within = (o, group) => { for (; o; o = o.parent) if (o === group) return true; return false; };
+  for (const [group, name] of [[disc, 'disc'], [booklet, 'booklet']]) if (hits.some(h => within(h.object, group))) return name;
+  return 'case';
 }
 const hitsCase = (x, y) => hitWhat(x, y) !== null;
 let drag = null;
@@ -1069,8 +1075,9 @@ const endDrag = (e) => {
   if (!drag.moved && performance.now() - drag.t < 500) {
     const hit = hitWhat(e.clientX, e.clientY);
     if (state.discOutTarget > 0.5) setDiscOut(false);                        // out: any tap puts it back
-    else if (hit === 'disc' && state.openTarget > 0.5) setDiscOut(true);     // the disc in an open case: out it comes
+    else if ((hit === 'disc' || hit === 'booklet') && state.openTarget > 0.5) liftOut(hit);   // in an open case: out it comes
     else if (hit) toggleOpen();
+    else if (state.openTarget > 0.5) setOpen(false);                          // open: a tap off the case closes it
     else if (performance.now() - lastTap.t < 350 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 40) resetView();
     lastTap = { t: performance.now(), x: e.clientX, y: e.clientY };
   }
@@ -1127,6 +1134,9 @@ renderer.setAnimationLoop(() => {
   }
   disc.position.set(0, 0, -1.0 + 1.6 * Math.max(0, o - 0.6)); // the disc rises a hair off the rosette once open
   disc.scale.setScalar(1);
+  booklet.position.set(2, 0, 0.7);
+  booklet.quaternion.identity();
+  booklet.scale.setScalar(1);
 
   // the disc: spins up and down smoothly (and while the music plays)
   followPlayer();
@@ -1177,26 +1187,30 @@ renderer.setAnimationLoop(() => {
   }
   caseRoot.scale.setScalar(Math.max(0.001, state.scale));
 
-  // The disc out: it leaves the tray on a small arc, turns to face the camera and comes up to fill the screen
-  // (the full width of a phone, the height of a wide screen, short of the bars), spinning; the case moves up
-  // and back out of its way.
+  // Out of the case: the disc (or the booklet) leaves on a small arc, turns to face the camera and comes up to fill
+  // the screen (the full width of a phone, the height of a wide screen, short of the bars), the disc spinning, the
+  // booklet open at its notes; the case moves up and back out of its way.
   state.out += (state.discOutTarget - state.out) * Math.min(1, dt * 3.2);
   const lift = ease(THREE.MathUtils.clamp(state.out, 0, 1));
   if (lift > 0.0005) {
+    const isDisc = state.lifted === 'disc';
+    const item = isDisc ? disc : booklet;
     const toward = camera.getWorldDirection(new THREE.Vector3());
     caseRoot.position.addScaledVector(cameraUp, (camera.aspect < 1 ? 170 : 75) * lift).addScaledVector(toward, 140 * lift);
     caseRoot.updateMatrixWorld(true);
     const from = new THREE.Vector3(), fromQ = new THREE.Quaternion(), unit = new THREE.Vector3();
-    disc.matrixWorld.decompose(from, fromQ, unit);
+    item.matrixWorld.decompose(from, fromQ, unit);
     const tanHalf = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) / camera.zoom;
-    const fill = 0.86 * Math.min(camera.aspect, 1) * (camera.aspect < 1 ? 1 : 0.8);
-    const distance = 2 * DISC / (fill * 2 * tanHalf);
+    const fill = (isDisc ? 0.86 : 0.9) * Math.min(camera.aspect, 1) * (camera.aspect < 1 ? 1 : isDisc ? 0.8 : 0.66);
+    const distance = (isDisc ? 2 * DISC : BOOK) / (fill * 2 * tanHalf);
     const to = camera.position.clone().addScaledVector(toward, distance).addScaledVector(cameraUp, distance * tanHalf * 0.06);
-    const toQ = camera.quaternion.clone().multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(state.discTilt.x, state.discTilt.y, 0, 'YXZ'))).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), state.discAngle));
+    const toQ = camera.quaternion.clone().multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(state.discTilt.x, state.discTilt.y, 0, 'YXZ')))
+      .multiply(isDisc ? new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), state.discAngle)
+        : new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI));   // the notes (its back) to the camera
     const at = from.clone().lerp(to, lift).addScaledVector(cameraUp, Math.sin(Math.PI * lift) * 25);
     const local = new THREE.Matrix4().compose(at, fromQ.clone().slerp(toQ, lift), unit)
-      .premultiply(disc.parent.matrixWorld.clone().invert());
-    local.decompose(disc.position, disc.quaternion, disc.scale);
+      .premultiply(item.parent.matrixWorld.clone().invert());
+    local.decompose(item.position, item.quaternion, item.scale);
   }
 
   renderer.setRenderTarget(hdr);
