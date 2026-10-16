@@ -66,13 +66,15 @@ sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
 Object.assign(sun.shadow.camera, { left: -260, right: 260, top: 260, bottom: -260, near: 50, far: 1200 });
 sun.shadow.camera.updateProjectionMatrix();
-sun.shadow.radius = 14;
+sun.shadow.radius = 22;
 sun.shadow.blurSamples = 20;
 sun.shadow.bias = -0.0005;
 scene.add(sun);
 
-const table = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000), new THREE.ShadowMaterial({ opacity: 0.16 }));
+// the floor the shadow falls on: well below the case, so turning the case never cuts into it
+const table = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000), new THREE.ShadowMaterial({ opacity: 0.12 }));
 table.rotation.x = -Math.PI / 2;
+table.position.y = -110;
 table.receiveShadow = true;
 scene.add(table);
 
@@ -407,6 +409,18 @@ hinge.add(lid);
   }
 }
 
+// the booklet, held in the lid under its face: the cover on the front, the release's notes inside
+const BOOK = 120;
+const booklet = new THREE.Group();
+booklet.position.set(2, 0, 0.7);
+lid.add(booklet);
+const bookletFront = part(new THREE.PlaneGeometry(BOOK, BOOK),
+  new THREE.MeshPhysicalMaterial({ roughness: 0.4, clearcoat: 0.5, clearcoatRoughness: 0.2, envMapIntensity: 0.5 }));
+bookletFront.position.z = 0.15;
+const bookletInside = part(new THREE.PlaneGeometry(BOOK, BOOK), new THREE.MeshPhysicalMaterial({ roughness: 0.75, specularIntensity: 0.3, envMapIntensity: 0.42 }));
+bookletInside.rotation.y = Math.PI; // facing into the case
+booklet.add(bookletFront, bookletInside);
+
 // ---------------------------------------------------------------- the frame: high range, then flares, then the screen
 const hdr = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 });
 const quarterA = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType });
@@ -457,11 +471,12 @@ const starPass = new FullScreenQuad(new THREE.ShaderMaterial({
 // onto the screen: the flares (on a white page added light can't show, so they cool what they cross a little,
 // with white-hot middles), a soft shoulder over the brightest values, then sRGB
 const composite = new FullScreenQuad(new THREE.ShaderMaterial({
-  uniforms: { tScene: { value: null }, tStars: { value: null } },
+  uniforms: { tScene: { value: null }, tStars: { value: null }, uDark: { value: 0 } },
   vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
   fragmentShader: /* glsl */`
     uniform sampler2D tScene;
     uniform sampler2D tStars;
+    uniform float uDark;
     varying vec2 vUv;
     vec3 shoulder(vec3 x) {
       return mix(x, 0.86 + 0.14 * (1.0 - exp(-(x - 0.86) / 0.14)), step(0.86, x));
@@ -474,7 +489,7 @@ const composite = new FullScreenQuad(new THREE.ShaderMaterial({
       vec3 c = texture2D(tScene, vUv).rgb;
       vec3 s = texture2D(tStars, vUv).rgb * 0.5;
       float k = clamp(dot(s, vec3(0.3333)), 0.0, 1.0);
-      c = mix(c, vec3(0.5, 0.66, 1.0) * c, k * 0.55) + s;
+      c = mix(c, vec3(0.5, 0.66, 1.0) * c, k * 0.55 * (1.0 - uDark)) + s; // (on black, added light shows as it is)
       gl_FragColor = vec4(toSRGB(shoulder(c)), 1.0);
     }`,
 }));
@@ -524,9 +539,138 @@ const texture = (url, srgb) => {
   t.anisotropy = renderer.capabilities.getMaxAnisotropy();
   return t;
 };
-const covers = releases.map(r => DISCS[r.id]
-  ? { art: texture(`discs/${r.id}.webp`, true), relief: texture(`discs/${r.id}-relief.webp`, false), metal: DISCS[r.id].metal }
-  : { art: texture(`../${r.cover}`, true), relief: null, metal: [1, 1, 1] });
+const covers = releases.map(r => {
+  const cover = texture(`../${r.cover}`, true);
+  return DISCS[r.id]
+    ? { cover, art: texture(`discs/${r.id}.webp`, true), relief: texture(`discs/${r.id}-relief.webp`, false), metal: DISCS[r.id].metal }
+    : { cover, art: cover, relief: null, metal: [1, 1, 1] };
+});
+
+// ---------------------------------------------------------------- the booklet's inside page
+// Set like the label's press pages: the wordmark and the date, the title in Impact stretched 180% wide, the
+// artists, the tracklist, the credits; for a release with a press release, its opening paragraphs too.
+const NOTES = {
+  jashim: {
+    cat: 'VV007',
+    text: [
+      'JASHIM releases his self-titled debut album ‘JASHIM’, an exploration of courtship and love in Montreal’s latinx underground.',
+      'The record moves between euphoria and vulnerability: beautiful micromelodies, guaracha, and the tension of two people caught on the same late-night frequency. It feels like a melancholic perreo on a mid-summer night.',
+      'Guests include vskz, Moonstar, Xlow, KIDDEIN and Sinjin Hawke, who also executive-produced the record.',
+    ],
+  },
+};
+const fontsReady = (async () => {
+  try {
+    const impact = new FontFace('Impact VV', 'url(https://fractalfantasy.net/signature/impact.woff)');
+    document.fonts.add(await impact.load());
+  } catch (e) { /* Impact itself, or a fallback */ }
+  await Promise.all(['400 20px Inter', '600 20px Inter', '700 20px Inter'].map(f => document.fonts.load(f)));
+})();
+const wordmark = new Image();
+wordmark.src = '../assets/img/site/visceral-vaults-wordmark-grey.png';
+const insidePages = new Map();
+function insidePage(r) {
+  if (insidePages.has(r.id)) return insidePages.get(r.id);
+  const N = 1024;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = N;
+  const t = new THREE.CanvasTexture(canvas);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  insidePages.set(r.id, t);
+  const photo = new Image();
+  photo.src = `../${r.cover}`;
+  Promise.all([fontsReady, wordmark.decode().catch(() => {}), photo.decode().catch(() => {})]).then(() => {
+    const g = canvas.getContext('2d');
+    const notes = NOTES[r.id];
+    const M = 78;
+    g.fillStyle = '#f1f1ef';
+    g.fillRect(0, 0, N, N);
+    g.fillStyle = '#111';
+    g.textBaseline = 'alphabetic';
+    if (wordmark.naturalWidth) g.drawImage(wordmark, M, M - 6, 190, 190 * wordmark.naturalHeight / wordmark.naturalWidth);
+    const [y, m, d] = (r.date || '').split('-');
+    g.font = '600 19px Inter';
+    g.fillStyle = '#8a8a8a';
+    g.textAlign = 'right';
+    g.fillText([notes?.cat, d && `${d}.${m}.${y}`].filter(Boolean).join('   ·   '), N - M, M + 8);
+    // the title: Impact, 180% wide, as wide as the page allows
+    g.textAlign = 'left';
+    g.fillStyle = '#111';
+    let size = 150;
+    g.font = `${size}px "Impact VV", Impact, "Arial Black", sans-serif`;
+    const w = g.measureText(r.title.toUpperCase()).width * 1.8;
+    size = Math.min(150, size * (N - 2 * M) / w);
+    g.font = `${size}px "Impact VV", Impact, "Arial Black", sans-serif`;
+    g.save();
+    g.translate(M, M + 40 + size * 0.86);
+    g.scale(1.8, 1);
+    g.fillText(r.title.toUpperCase(), 0, 0);
+    g.restore();
+    let top = M + 40 + size * 0.86 + 52;
+    g.font = '600 26px Inter';
+    g.fillText(r.artist, M, top);
+    top += 34;
+    g.fillStyle = '#d4d4d4';
+    g.fillRect(M, top, N - 2 * M, 2);
+    top += 50;
+    // the words (if any) on the left, the tracks on the right; without words, the cover's picture beside the tracks
+    const pictured = !notes && photo.naturalWidth;
+    if (pictured) {
+      const side = Math.min(N - M - 540, N - M - 90 - top);
+      g.drawImage(photo, N - M - side, top - 8, side, side);
+    }
+    const tracksX = notes ? 560 : M;
+    const tracksW = (pictured ? 500 : N - M) - tracksX;
+    if (notes) {
+      g.fillStyle = '#111';
+      g.font = '500 21px Inter';
+      let ty = top;
+      for (const para of notes.text) {
+        const words = para.split(' ');
+        let line = '';
+        for (const word of words) {
+          const test = line ? `${line} ${word}` : word;
+          if (g.measureText(test).width > tracksX - M - 40) { g.fillText(line, M, ty); ty += 30; line = word; } else line = test;
+        }
+        g.fillText(line, M, ty);
+        ty += 44;
+      }
+    }
+    const tracks = r.tracks || [];
+    const cols = !notes && !pictured && tracks.length > 6 ? 2 : 1;
+    const colW = (tracksW - (cols - 1) * 50) / cols;
+    const perCol = Math.ceil(tracks.length / cols);
+    const step = Math.min(40, (N - M - 120 - top) / perCol);
+    tracks.forEach((name, i) => {
+      const x = tracksX + Math.floor(i / perCol) * (colW + 50);
+      const ty = top + (i % perCol) * step;
+      g.font = '700 19px Inter';
+      g.fillStyle = '#777';
+      g.textAlign = 'left';
+      g.fillText(String(i + 1).padStart(2, '0'), x, ty);
+      g.font = '600 22px Inter';
+      g.fillStyle = '#0a0a0a';
+      let label = name;
+      while (g.measureText(label).width > colW - 120 && label.length > 4) label = label.slice(0, -2) + '…';
+      g.fillText(label, x + 44, ty);
+      if (r.lengths?.[i]) {
+        g.font = '500 19px Inter';
+        g.fillStyle = '#666';
+        g.textAlign = 'right';
+        g.fillText(r.lengths[i], x + colW, ty);
+      }
+    });
+    // the credits along the bottom
+    g.textAlign = 'left';
+    g.font = '500 17px Inter';
+    g.fillStyle = '#6a6a6a';
+    const year = y || new Date().getFullYear();
+    g.fillText([r.credit, `℗ & © ${year} Visceral Vaults, a sublabel of Fractal Fantasy`].filter(Boolean).join('   ·   '), M, N - M);
+    t.needsUpdate = true;
+  });
+  return t;
+}
 
 // ---------------------------------------------------------------- state
 const state = {
@@ -536,10 +680,6 @@ const state = {
   yaw: -0.35, pitch: 0, yawVel: 0, pitchVel: 0,
   scale: 1, swap: null,
 };
-const audio = new Audio();
-audio.preload = 'none';
-let track = 0;
-let playing = false;
 
 function setRelease(i) {
   state.index = i;
@@ -549,54 +689,112 @@ function setRelease(i) {
   discUniforms.uRelief.value = c.relief ?? c.art;
   discUniforms.uStickers.value = c.relief ? 1 : 0;
   discUniforms.uTint.value.setRGB(...c.metal);
+  bookletFront.material.map = c.cover;
+  bookletFront.material.needsUpdate = true;
+  bookletInside.material.map = insidePage(r);
+  bookletInside.material.needsUpdate = true;
   $('title').textContent = r.title;
   $('artist').textContent = r.artist;
   document.querySelectorAll('.thumb').forEach((b, j) => b.setAttribute('aria-pressed', String(j === i)));
   history.replaceState(null, '', `#${r.id}`);
 }
 
-// a new release: the case closes and drops away, comes back with the new disc
-function show(i) {
+// a new release: the case closes and drops away, comes back with the new disc (and opens, if asked)
+function show(i, { open = false } = {}) {
   i = (i + releases.length) % releases.length;
-  if (i === state.index || state.swap) return;
-  state.openTarget = 0;
-  state.swap = { to: i, t: 0 };
-  if (playing) startTrack(i, 0);
-}
-
-function startTrack(i, n) {
-  const r = releases[i];
-  if (!r.audio?.length) return;
-  track = n % r.audio.length;
-  audio.src = r.audio[track];
-  audio.play().catch(() => {});
-}
-function setPlaying(on) {
-  playing = on;
-  $('play').setAttribute('aria-pressed', String(on));
-  if (on) {
-    if (!audio.src || !audio.src.includes(releases[state.index].audio?.[track] ?? '\0')) startTrack(state.index, 0);
-    else audio.play().catch(() => {});
-  } else {
-    audio.pause();
+  if (i === state.index || state.swap) {
+    if (open && i === state.index) setOpen(true);
+    return;
   }
-  updatePlaying();
+  setOpen(false);
+  state.swap = { to: i, t: 0, open };
 }
-function updatePlaying() {
-  const r = releases[state.index];
-  $('playing').textContent = playing && r.tracks ? `▶ ${r.tracks[track] ?? ''}` : '';
-}
-audio.addEventListener('ended', () => startTrack(state.index, track + 1));
-audio.addEventListener('play', updatePlaying);
 
+function setOpen(on) {
+  state.openTarget = on ? 1 : 0;
+  $('open').setAttribute('aria-pressed', String(on));
+}
 function toggleOpen() {
-  state.openTarget = state.openTarget > 0.5 ? 0 : 1;
-  $('open').setAttribute('aria-pressed', String(state.openTarget > 0.5));
+  setOpen(state.openTarget < 0.5);
   hideHint();
 }
 function toggleSpin() {
   state.spin = !state.spin;
   $('spin').setAttribute('aria-pressed', String(state.spin));
+}
+
+// ---------------------------------------------------------------- the FF player (as on visceralvaults.com)
+// One playlist of every playable song, release after release; a song that isn't out yet (JASHIM's album
+// before November 6th, but for its singles) is left out. When it moves on to another release's song,
+// that release's case comes up and opens; picking a case while it plays jumps to that release.
+function canPlay(release, i) {
+  const d = new Date();
+  const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return !release.singles || today >= release.date || (release.singles[i] ?? '9999') <= today;
+}
+const PLATFORMS = [['spotify', 'Spotify'], ['appleMusic', 'Apple Music'], ['youtube', 'YouTube'], ['bandcamp', 'Bandcamp']];
+const releaseLinks = (r) => PLATFORMS.filter(([k]) => r[k]).map(([k, label]) => [label, r[k]])
+  .concat((r.links || []).map(l => [l.label, l.href]));
+
+const entries = releases.flatMap(release => (release.tracks || []).map((_, i) => ({ release, i })))
+  .filter(({ release, i }) => release.audio?.[i] && canPlay(release, i));
+let player = null;
+let shownEntry = -1;
+if (typeof FFPlayer !== 'undefined' && entries.length) {
+  const first = entries[0].release;
+  player = new FFPlayer({
+    title: first.title, artist: first.artist, description: 'Visceral Vaults', mode: 'audio playlist',
+    src: entries.map(({ release, i }) => release.audio[i]),
+    songTitle: entries.map(({ release, i }) => release.tracks[i]),
+    download: true, links: releaseLinks(first), volume: true, loop: true,
+  });
+  const back = document.createElement('button');
+  back.className = 'back';
+  back.setAttribute('aria-label', 'Previous');
+  back.addEventListener('click', () => player.previousSong());
+  player.container.prepend(back);
+}
+const playing = () => !!player && !!player.song && !player.song.paused;
+
+// the bar's credits and links: the release of its song
+function credits(release) {
+  player.container.querySelector('#playerTitle').textContent = release.title;
+  player.container.querySelector('#playerArtist').textContent = release.artist;
+  const panel = player.container.querySelector('.ffplayer-links');
+  if (panel) panel.replaceChildren(...releaseLinks(release).map(([label, href]) => Object.assign(document.createElement('a'), { href, target: '_blank', rel: 'noopener', textContent: label })));
+}
+
+// skipping (or playing on) into another release's songs brings its case up, open (checked every frame)
+function followPlayer() {
+  if (!player || player.currentPlaylistIndex === shownEntry || state.swap) return;
+  shownEntry = player.currentPlaylistIndex;
+  const { release } = entries[shownEntry];
+  credits(release);
+  show(releases.indexOf(release), { open: true });
+}
+
+// picking a case moves the bar to that release's first song (playing it if the bar was playing)
+function pick(i) {
+  i = (i + releases.length) % releases.length;
+  show(i);
+  if (!player) return;
+  const entry = entries.findIndex(e => e.release === releases[i]);
+  if (entry < 0 || entries[player.currentPlaylistIndex].release === releases[i]) return;
+  shownEntry = entry;
+  credits(releases[i]);
+  if (playing()) player.playSong(entry);
+  else player._goTo(entry, false);
+}
+
+// ---------------------------------------------------------------- black or white
+function setDark(on) {
+  document.body.classList.toggle('dark', on);
+  $('dark').setAttribute('aria-pressed', String(on));
+  const v = on ? 0 : pageLinear;
+  scene.background.setRGB(v, v, on ? 0 : v * 0.995, THREE.LinearSRGBColorSpace);
+  composite.material.uniforms.uDark.value = on ? 1 : 0;
+  table.material.opacity = on ? 0 : 0.12;
+  try { localStorage.setItem('vv-cd-dark', on ? '1' : ''); } catch (e) { /* storage blocked */ }
 }
 
 // ---------------------------------------------------------------- the dock
@@ -609,24 +807,32 @@ releases.forEach((r, i) => {
     : `url("../${r.cover}")`;
   b.title = `${r.title} — ${r.artist}`;
   b.setAttribute('aria-label', `${r.title} by ${r.artist}`);
-  b.addEventListener('click', () => show(i));
+  b.addEventListener('click', () => pick(i));
   dock.appendChild(b);
 });
 $('open').addEventListener('click', toggleOpen);
 $('spin').addEventListener('click', toggleSpin);
-$('play').addEventListener('click', () => setPlaying(!playing));
+$('dark').addEventListener('click', () => setDark(!document.body.classList.contains('dark')));
 addEventListener('keydown', (e) => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const k = e.key.toLowerCase();
   if (k === 'o') toggleOpen();
   else if (k === 's') toggleSpin();
-  else if (k === 'p' || k === ' ') { e.preventDefault(); setPlaying(!playing); }
-  else if (k === 'arrowright') show(state.index + 1);
-  else if (k === 'arrowleft') show(state.index - 1);
+  else if (k === 'b') setDark(!document.body.classList.contains('dark'));
+  else if ((k === 'p' || k === ' ') && player) { e.preventDefault(); player.togglePlay(); }
+  else if (k === 'arrowright') pick(state.index + 1);
+  else if (k === 'arrowleft') pick(state.index - 1);
 });
 
 const fromHash = releases.findIndex(r => `#${r.id}` === location.hash);
 setRelease(fromHash >= 0 ? fromHash : 0);
+if (player) {
+  const entry = Math.max(0, entries.findIndex(e => e.release === releases[state.index]));
+  if (entry) player._goTo(entry, false);
+  shownEntry = player.currentPlaylistIndex;
+  credits(entries[shownEntry].release);
+}
+try { if (localStorage.getItem('vv-cd-dark')) setDark(true); } catch (e) { /* storage blocked */ }
 
 let hintTimer = setTimeout(hideHint, 9000);
 function hideHint() {
@@ -701,7 +907,8 @@ renderer.setAnimationLoop(() => {
   disc.position.z = -1.0 + 1.6 * Math.max(0, o - 0.6); // the disc rises a hair off the rosette once open
 
   // the disc: spins up and down smoothly (and while the music plays)
-  const target = state.spin || playing ? Math.PI * 2 * 0.55 : 0;
+  followPlayer();
+  const target = state.spin || playing() ? Math.PI * 2 * 0.55 : 0;
   state.spinSpeed += (target - state.spinSpeed) * Math.min(1, dt * 2.2);
   state.discAngle -= state.spinSpeed * dt;
 
@@ -715,6 +922,8 @@ renderer.setAnimationLoop(() => {
   }
   const turn = portrait ? -Math.PI / 2 + 0.24 : 0; // (and less of a three-quarter view, to fill the width)
   disc.rotation.z = state.discAngle - turn;         // the disc's art stays upright either way
+  // the booklet is square: it turns by a whole quarter with the case, so it still fits its lid
+  bookletFront.rotation.z = bookletInside.rotation.z = portrait ? Math.PI / 2 : 0;
   caseRoot.rotation.set(state.pitch + Math.sin(time * 0.6) * 0.025, turn + state.yaw + Math.sin(time * 0.37) * 0.04, 0, 'YXZ');
   caseRoot.position.y = 14 + Math.sin(time * 0.8) * 1.2;
 
@@ -725,10 +934,10 @@ renderer.setAnimationLoop(() => {
     if (s.t < 0.32) {
       state.scale = 1 - ease(s.t / 0.32);
     } else {
-      if (!s.swapped) { s.swapped = true; setRelease(s.to); updatePlaying(); }
+      if (!s.swapped) { s.swapped = true; setRelease(s.to); }
       const u = Math.min(1, (s.t - 0.32) / 0.55);
       state.scale = 1 + Math.sin(u * Math.PI) * 0.06 * (1 - u) + (ease(u) - 1);
-      if (u >= 1) { state.swap = null; state.scale = 1; }
+      if (u >= 1) { if (s.open) setOpen(true); state.swap = null; state.scale = 1; }
     }
     caseRoot.rotation.y += (1 - state.scale) * 0.9;
   }
