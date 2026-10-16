@@ -603,14 +603,32 @@ const texture = (url, srgb) => {
   t.anisotropy = renderer.capabilities.getMaxAnisotropy();
   return t;
 };
-// a booklet's front where it differs from the site's cover (JASHIM's with its parental advisory label)
+// A release's pictures (covers/: the booklet's front, 1024 px; JASHIM's with its parental advisory label), loaded
+// when it first comes up, so the one on screen isn't kept waiting behind the rest; the others follow, one at a
+// time, once it's in.
 const BOOKLETS = { jashim: 'booklets/jashim.jpg' };
-const covers = releases.map(r => {
-  const cover = texture(BOOKLETS[r.id] ?? `../${r.cover}`, true);
-  return DISCS[r.id]
-    ? { cover, art: texture(`discs/${r.id}.webp`, true), relief: texture(`discs/${r.id}-relief.webp`, false), metal: DISCS[r.id].metal }
-    : { cover, art: cover, relief: null, metal: [1, 1, 1] };
-});
+const loaded = new Map();
+function releaseTextures(i) {
+  if (!loaded.has(i)) {
+    const r = releases[i];
+    const cover = texture(`covers/${r.id}.webp`, true);
+    loaded.set(i, DISCS[r.id]
+      ? { cover, art: texture(`discs/${r.id}.webp`, true), relief: texture(`discs/${r.id}-relief.webp`, false), metal: DISCS[r.id].metal }
+      : { cover, art: cover, relief: null, metal: [1, 1, 1] });
+  }
+  return loaded.get(i);
+}
+function prefetchAll(after = 1500) {
+  let j = 0;
+  const next = () => {
+    while (j < releases.length && loaded.has(j)) j++;
+    if (j >= releases.length) return;
+    releaseTextures(j);
+    insidePage(releases[j]);
+    setTimeout(next, 250);
+  };
+  setTimeout(next, after);
+}
 
 // ---------------------------------------------------------------- the booklet's inside page
 // Set like the label's press pages: the wordmark and the date, the title in Impact stretched 180% wide, the
@@ -618,16 +636,61 @@ const covers = releases.map(r => {
 const NOTES = {
   // the singles: set as a page of the press kit, a press photo beside the release's words (the first paragraph large)
   'yo-se': {
-    cat: 'Single', caption: 'The first single from ‘JASHIM’', photo: 'jashim/img/press-1.jpg',
+    cat: 'Single', caption: 'The first single from ‘JASHIM’', photo: 'cd/press/jashim-1.webp',
     text: ['JASHIM’s first single introduces the world of his self-titled debut: a hazy, sensual Latin club track built around beautiful micromelodies, a rolling dembow rhythm, and the intimate chemistry of a summer night.',
       'Smooth rhodes chords float above a deep UK bassline, creating a contrast between warmth and low-end pressure.',
       'Lyrically, the song captures the charged feeling of two people caught up in the same late-night frequency: flirting, desire, intoxication.'],
   },
   gistro: {
-    cat: 'Single', caption: 'The second single from ‘JASHIM’', photo: 'jashim/img/press-3.jpg',
+    cat: 'Single', caption: 'The second single from ‘JASHIM’', photo: 'cd/press/jashim-3.webp',
     text: ['“GISTRO” is the second single from JASHIM’s self-titled LP, pushing the project deeper into JASHIM’s club universe with a high-energy Neoperreo track produced by Sinjin Hawke.',
       'A sidechained electro bassline drives the track with a powerful, elastic pulse, colliding with crunk energy and hard-hitting club percussion.',
       'Legendary Montreal Vogue commentator Moonstar delivers cunty ballroom vocals that turn the track into a call-to-action for baddies.'],
+  },
+  // the catalogue, from the press at the time (no press photo: the cover takes its place)
+  ww4: {
+    cat: 'Single', caption: 'A Halloween drop · 2018',
+    text: ['Two pioneers of Chicago drill, King Louie and Mikey Dollaz, over a beat by Zora Jones and Drippin, let out of the vault on Halloween 2018.',
+      'The production is Fractal Fantasy’s bass-heavy, mutant dancehall: heavy drums and warped, chromatic stabs, a menacing backdrop for the pair’s hard delivery.',
+      'The beat first surfaced in Zora Jones’s 2017 FACT mix. Famous Eno, of Manchester’s Swing Ting crew, turns it into a driving club remix that keeps the original’s aggressive percussion.'],
+    credits: ['Vocals: King Louie & Mikey Dollaz', 'Produced by Zora Jones & Drippin', 'Remix: Famous Eno'],
+  },
+  'worst-vocal-dub': {
+    cat: 'Single', caption: 'From Hyperdub to First Opus',
+    text: ['It began as Sinjin Hawke’s remix of “Worst”, from DVA’s Take It All EP on Hyperdub, and grew into a full grime vocal with Killa P.',
+      'Hawke kept the original’s warbling bass and piled on brass and 8-bit flourishes; Killa P, the voice beside Flowdan on The Bug’s “Skeng”, rides it.',
+      'Released in spring 2017 with a video, it was the first taste of Hawke’s debut album, First Opus.'],
+    credits: ['Original by DVA', 'Remix by Sinjin Hawke', 'Vocals: Killa P'],
+  },
+  'yea-hoe-mixes': {
+    cat: 'EP', caption: 'Yea Hoe, four ways', logo: 'cd/press/gangsta-boo-logo.webp', photo: 'cd/press/gangsta-boo.webp',
+    title: ['cd/press/yea-hoe-title.webp', 'cd/press/mixes-title.webp'],
+    text: ['“Yea Hoe”, taken apart and rebuilt four ways: the Devil’s Daughter Mix, Richelle’s “Virtual Geisha” remix, a remix by Vjuan Allure, and the instrumental.',
+      'Richelle is the Brussels producer behind Pelican Fly, the label that put out Sinjin Hawke’s first EP. Vjuan Allure, the Washington D.C. ballroom DJ behind the classic 2000 edit of “The Ha Dance”, takes the record to the ballroom.',
+      'Both Gangsta Boo and Vjuan Allure have since passed. This EP keeps them together.'],
+    credits: ['Vocals: Gangsta Boo', 'Original produced by Sinjin Hawke', 'Remixes: Richelle, Vjuan Allure', 'In memory of Gangsta Boo, 1979–2023'],
+  },
+  'how-we-rock': {
+    cat: 'Single', caption: 'Chicago bop · Montreal · Bergen',
+    text: ['Chicago’s Sicko Mobb, the bop duo of Lil Ceno and Lil Trav, over a beat by Montreal’s Sinjin Hawke and Bergen’s Drippin.',
+      'As “This Is How We Rock” it opened Mulah, the 17-track tape Sicko Mobb put out with Red Bull Sound Select and Fake Shore Drive in May 2015.',
+      'Fast, Auto-Tuned and euphoric: Noisey heard “a triumphant, gleeful cartoon world of Auto-Tune”.'],
+    credits: ['Vocals: Sicko Mobb', 'Produced by Sinjin Hawke & Drippin'],
+  },
+  one: {
+    cat: 'Single', caption: 'Red Bull Music Academy, New York',
+    text: ['Made at the 2013 Red Bull Music Academy in New York, “One” brought together Just Blaze, the producer behind a generation of Roc-A-Fella classics, and Sinjin Hawke.',
+      'Blaze reaches back to the pitched-up “chipmunk soul” he made his name with, over an epic, slow-building intro and a bassline that never lets go.',
+      'FACT premiered it as a free download in January 2014. There’s no big drop; in Complex’s words, it runs on “just copious amounts of feels”.'],
+    credits: ['Produced by Just Blaze & Sinjin Hawke'],
+  },
+  'yea-hoe': {
+    cat: 'Single', caption: 'Red Bull Music Academy · 2013', logo: 'cd/press/gangsta-boo-logo.webp', photo: 'cd/press/gangsta-boo.webp',
+    title: ['cd/press/yea-hoe-title.webp'],
+    text: ['Red Bull Music Academy put Three 6 Mafia’s Gangsta Boo together with a young Sinjin Hawke, and “Yea Hoe” was the result, given away as a free download in September 2013.',
+      'Hawke built it as orchestral crunk, horns and strings swelling under Boo’s bouncing Memphis flow; the title is her signature ad-lib.',
+      'It landed weeks after her long-awaited mixtape It’s Game Involved. FACT called the two “surprisingly apt collaborators”.'],
+    credits: ['Vocals: Gangsta Boo', 'Produced by Sinjin Hawke', 'In memory of Gangsta Boo, 1979–2023'],
   },
   jashim: {
     cat: 'VV007',
@@ -688,13 +751,15 @@ function insidePage(r) {
   t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = renderer.capabilities.getMaxAnisotropy();
   insidePages.set(r.id, t);
-  const photo = new Image();
-  photo.src = `../${NOTES[r.id]?.photo ?? r.cover}`;
-  Promise.all([fontsReady, wordmark.decode().catch(() => {}), photo.decode().catch(() => {})]).then(() => {
+  const notes = NOTES[r.id];
+  const load = (src) => { const im = new Image(); im.src = `../${src}`; return im; };
+  const photo = load(notes?.photo ?? `cd/covers/${r.id}.webp`);
+  const logo = notes?.logo ? load(notes.logo) : null;
+  const titleArt = (notes?.title || []).map(load);
+  Promise.all([fontsReady, ...[wordmark, photo, logo, ...titleArt].filter(Boolean).map(im => im.decode().catch(() => {}))]).then(() => {
     const g = canvas.getContext('2d');
-    const notes = NOTES[r.id];
-    if (notes?.photo) {
-      pressPage(g, N, r, notes, photo);
+    if (notes && notes.cat !== 'VV007') {
+      pressPage(g, N, r, notes, { photo, logo, titleArt, square: !notes.photo });
       t.needsUpdate = true;
       return;
     }
@@ -787,7 +852,7 @@ function insidePage(r) {
 // title alone in outlined Impact (a guest goes small, beside the artist), a caption, a hairline; then a press photo
 // down the left, and on the right the press release (its first paragraph large) over the track; the credits at the
 // foot. The words shrink until they fit.
-function pressPage(g, N, r, notes, photo) {
+function pressPage(g, N, r, notes, { photo, logo, titleArt = [], square = false }) {
   const M = 78, INK = '#111', GREY = '#8a8a8a';
   const caps = (text, x, y, size, color, align = 'left', spacing = 0.2) => {
     g.font = `600 ${size}px Inter`;
@@ -813,39 +878,84 @@ function pressPage(g, N, r, notes, photo) {
   const [y, m, d] = (r.date || '').split('-');
   caps([notes.cat, d && `${d}.${m}.${y}`].filter(Boolean).join('  ·  '), N - M, M + 8, 15, GREY, 'right');
 
-  // the title without its guest: "Gistro (feat. Moonstar)" is GISTRO, and "feat. Moonstar" goes with the artist
-  const guest = r.title.match(/\s*\(?\b(feat\.?|ft\.|with)\s+([^)]+)\)?\s*$/i);
-  const title = (guest ? r.title.slice(0, guest.index) : r.title).toUpperCase();
-  let size = 190;
-  g.font = `${size}px "Impact VV", Impact, "Arial Black", sans-serif`;
-  size = Math.min(size, size * (N - 2 * M) / (g.measureText(title).width * 1.8));
+  // the title without what's in brackets: "Gistro (feat. Moonstar)" is GISTRO, and "feat. Moonstar" goes with the
+  // artist ("Worst (Vocal Dub)": WORST, and "Vocal Dub")
+  const extra = r.title.match(/\s*(?:\((.+)\)|\b((?:feat\.?|ft\.)\s+.+))\s*$/i);
+  const title = (extra ? r.title.slice(0, extra.index) : r.title).toUpperCase();
+  const aside = extra ? (extra[1] || extra[2]).trim() : '';
   let top = M + 44;
-  g.drawImage(outlined(title, size, Math.max(3, size * 0.03)), M - 8, top - 8);
-  top += size * 0.86 + 50;
+  if (titleArt.some(im => im.naturalWidth)) {
+    // lettering drawn for the release (Gangsta Boo's records: chrome, after her Both Worlds ★69): its lines, one height
+    const rowH = titleArt.length > 1 ? 104 : 168;
+    for (const im of titleArt) {
+      const h = Math.min(rowH, (N - 2 * M) * im.naturalHeight / im.naturalWidth);
+      g.drawImage(im, M - 6, top - 10, h * im.naturalWidth / im.naturalHeight, h);
+      top += h + 6;
+    }
+    top += 34;
+  } else {
+    let size = 190;
+    g.font = `${size}px "Impact VV", Impact, "Arial Black", sans-serif`;
+    size = Math.min(size, size * (N - 2 * M) / (g.measureText(title).width * 1.8));
+    g.drawImage(outlined(title, size, Math.max(3, size * 0.03)), M - 8, top - 8);
+    top += size * 0.86 + 50;
+  }
+  // the artist (Gangsta Boo as her logo), what was in brackets beside it, and the caption to the right
+  g.textAlign = 'left';
+  let ax = M;
+  let artist = r.artist;
+  if (logo?.naturalWidth && /^Gangsta Boo/i.test(artist)) {
+    const h = 46;
+    g.drawImage(logo, M - 4, top - h + 8, h * logo.naturalWidth / logo.naturalHeight, h);
+    ax = M - 4 + h * logo.naturalWidth / logo.naturalHeight + 12;
+    artist = artist.replace(/^Gangsta Boo\s*/i, '');
+  }
   g.font = '700 27px Inter';
   g.fillStyle = INK;
-  g.textAlign = 'left';
-  g.fillText(r.artist.toUpperCase(), M, top);
-  if (guest) {
-    const x = M + g.measureText(r.artist.toUpperCase()).width + 14;
+  g.fillText(artist.toUpperCase(), ax, top);
+  ax += g.measureText(artist.toUpperCase()).width + 14;
+  if (aside) {
     g.font = '500 27px Inter';
     g.fillStyle = '#555';
-    g.fillText(`feat. ${guest[2].trim()}`, x, top);
+    g.fillText(aside, ax, top);
+    ax += g.measureText(aside).width;
   }
-  if (notes.caption) caps(`${notes.caption}  ·  Visceral Vaults`, N - M, top, 14, GREY, 'right');
+  if (notes.caption) {
+    const text = `${notes.caption}  ·  Visceral Vaults`;
+    g.font = '600 14px Inter';
+    g.letterSpacing = '2.8px';
+    const fits = ax + 40 + g.measureText(text.toUpperCase()).width < N - M;
+    g.letterSpacing = '0px';
+    if (!fits) top += 30;
+    caps(text, fits ? N - M : M, top, 14, GREY, fits ? 'right' : 'left');
+  }
   top += 26;
   g.fillStyle = '#cfcfcc';
   g.fillRect(M, top, N - 2 * M, 2);
   top += 40;
 
-  // the photo: cropped to fill a tall frame down the left
+  // the photo (or the cover), cropped to fill its frame down the left, and the credits under it
   const bottom = N - M - 52;
+  const credits = notes.credits || [];
+  const creditsH = credits.length ? 34 + credits.length * 25 : 0;
   const pw = 318, ph = bottom - top;
+  const frameH = square ? Math.min(pw, ph - creditsH) : ph - creditsH;
   if (photo.naturalWidth) {
-    const want = pw / ph, have = photo.naturalWidth / photo.naturalHeight;
+    const want = pw / frameH, have = photo.naturalWidth / photo.naturalHeight;
     const sw = have > want ? photo.naturalHeight * want : photo.naturalWidth;
     const sh = have > want ? photo.naturalHeight : photo.naturalWidth / want;
-    g.drawImage(photo, (photo.naturalWidth - sw) / 2, (photo.naturalHeight - sh) * 0.3, sw, sh, M, top, pw, ph);
+    g.drawImage(photo, (photo.naturalWidth - sw) / 2, (photo.naturalHeight - sh) * 0.3, sw, sh, M, top, pw, frameH);
+  }
+  if (credits.length) {
+    let cy = top + frameH + 36;
+    caps('Credits', M, cy, 12, GREY);
+    g.textAlign = 'left';
+    for (const line of credits) {
+      cy += 25;
+      g.font = /^In memory/.test(line) ? 'italic 500 16px Inter' : '500 16px Inter';
+      g.fillStyle = /^In memory/.test(line) ? '#777' : '#2a2a2a';
+      g.fillText(line, M, cy);
+    }
   }
 
   // the words, beside it: shrink everything together until the release and the track fit
@@ -882,7 +992,11 @@ function pressPage(g, N, r, notes, photo) {
       caps(String(i + 1).padStart(2, '0'), x, ry, 15, GREY, 'left', 0.1);
       g.font = '600 21px Inter';
       g.fillStyle = INK;
-      g.fillText(name, x + 40, ry);
+      // versions of one song ("Yea Hoe (Vjuan Allure Remix)", …) go by their version alone
+      const same = tracks.length > 1 && tracks.every(t => /\(.+\)$/.test(t) && t.split('(')[0] === tracks[0].split('(')[0]);
+      let label = same ? name.replace(/^[^(]*\((.+)\)$/, '$1') : name;
+      while (g.measureText(label).width > w - 110 && label.length > 4) label = label.slice(0, -2) + '…';
+      g.fillText(label, x + 40, ry);
       if (r.lengths?.[i]) { g.font = '500 18px Inter'; g.fillStyle = '#666'; g.textAlign = 'right'; g.fillText(r.lengths[i], x + w, ry); g.textAlign = 'left'; }
       ry += 34;
     });
@@ -904,7 +1018,7 @@ const state = {
 function setRelease(i) {
   state.index = i;
   const r = releases[i];
-  const c = covers[i];
+  const c = releaseTextures(i);
   discUniforms.uArt.value = c.art;
   discUniforms.uRelief.value = c.relief ?? c.art;
   discUniforms.uStickers.value = c.relief ? 1 : 0;
@@ -1057,7 +1171,7 @@ const dock = $('covers');
 releases.forEach((r, i) => {
   const b = document.createElement('button');
   b.className = 'thumb';
-  b.style.backgroundImage = `url("../${BOOKLETS[r.id] ? `cd/${BOOKLETS[r.id]}` : r.cover}")`;
+  b.style.backgroundImage = `url("thumbs/${r.id}.webp")`;
   b.title = `${r.title} — ${r.artist}`;
   b.setAttribute('aria-label', `${r.title} by ${r.artist}`);
   b.addEventListener('click', () => pick(i));
@@ -1078,6 +1192,7 @@ addEventListener('keydown', (e) => {
 
 const fromHash = releases.findIndex(r => `#${r.id}` === location.hash);
 setRelease(fromHash >= 0 ? fromHash : 0);
+prefetchAll();
 if (player) {
   const entry = Math.max(0, entries.findIndex(e => e.release === releases[state.index]));
   if (entry) player._goTo(entry, false);
