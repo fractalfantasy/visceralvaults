@@ -656,7 +656,7 @@ const texture = (url, srgb) => {
 // when it first comes up, so the one on screen isn't kept waiting behind the rest; the others follow, one at a
 // time, once it's in.
 const BOOKLETS = { jashim: 'booklets/jashim.jpg' };
-const V = '?v=3';   // bump when a picture changes, so browsers don't keep the old one
+const V = '?v=4';   // bump when a picture changes, so browsers don't keep the old one
 const loaded = new Map();
 function releaseTextures(i) {
   if (!loaded.has(i)) {
