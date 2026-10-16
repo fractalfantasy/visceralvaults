@@ -406,13 +406,37 @@ const discShader = {
         float cs = clamp(dot(Ns, V), 0.0, 1.0);
         float Fs = 0.05 + 0.95 * pow(1.0 - cs, 5.0);
         float shine = texture(uRelief, uv).g;
-        // the stickers come with their own shine painted in: keep their colours, lit a little by the room's key
-        float key = clamp(dot(Ns, normalize(uLampDir[0] + uLampDir[3])), 0.0, 1.0);
-        vec3 body = art.rgb * (0.72 + 0.32 * key);
-        vec3 laminate = room(Rs, 0.25) * (Fs * 1.1 + 0.05) * shine;
-        // the laminate is a holographic film: thin-film colours that slide with the angle, faint, over everything
-        vec3 film = hue(430.0 + 300.0 * fract(cs * 1.6 + dot(uv, vec2(1.7, 1.1)))) * room(Rs, 2.0) * 0.07 * shine;
-        vec3 sticker = body + laminate + film + colours * 0.05 * shine;
+        // Printed as a hologram, as the Windows 2000 discs were: no inks, the picture struck into the foil as
+        // tones of silver, and its only colour what the foil's gratings throw back. Each region of the picture
+        // (its tones, in blocks) has its grating at its own angle, so it flashes its rainbow at its own moment as
+        // the disc turns, with fine streaks along the grooves.
+        float lum = dot(art.rgb, vec3(0.299, 0.587, 0.114));
+        float band = floor(lum * 5.0);
+        vec2 cell = floor(uv * 7.0);
+        float pick = fract(sin(dot(cell + band * 1.37, vec2(12.9898, 78.233))) * 43758.5453);
+        float ang = (band * 0.61 + pick * 0.9) * 3.14159;
+        vec3 across = normalize(normalize(vTx) * cos(ang) + normalize(vTy) * sin(ang));
+        vec3 groove = normalize(cross(Ns, across));
+        vec3 holo = vec3(0.0);
+        for (int i = 0; i < 6; i++) {
+          vec3 s = uLampDir[i] + V;
+          float a = dot(s, groove);
+          float x = abs(dot(s, across)) * 1050.0;   // a grating about a micron apart
+          holo += (hue(x) + 0.5 * hue(x / 2.0)) * exp(-a * a / 0.09) * uLampPower[i];
+        }
+        vec2 q = vec2(dot(uv, vec2(cos(ang), sin(ang))), dot(uv, vec2(-sin(ang), cos(ang))));
+        // streaks along the grooves: smooth ones (a hash between neighbouring lines, blended), so they don't fizz
+        float sx = q.x * 220.0;
+        float h0 = fract(sin(floor(sx) * 91.7 + floor(q.y * 9.0) * 17.3) * 43758.5453);
+        float h1 = fract(sin((floor(sx) + 1.0) * 91.7 + floor(q.y * 9.0) * 17.3) * 43758.5453);
+        float streak = 0.5 + 0.8 * mix(h0, h1, smoothstep(0.0, 1.0, fract(sx)));
+        // the tones: the room in the foil, a dark grey silver where the picture is dark
+        // (a softbox mirrored in it stays a bright grey, not a blaze: foil and laminate kept under the flares)
+        vec3 foil = min(room(Rs, 1.0) * uMirror, vec3(1.25)) * mix(0.16, 0.78, smoothstep(0.04, 0.96, lum));
+        vec3 laminate = min(room(Rs, 0.25) * (Fs * 0.6 + 0.02) * shine, vec3(0.9));
+        // the rainbow kept under the flares' threshold: a hologram glows, it doesn't blaze
+        vec3 flash = min(holo * streak * (0.3 + 0.7 * lum) * 0.5, vec3(1.3));
+        vec3 sticker = (foil + flash) * uTint + laminate;
         float onLabel = smoothstep(23.0 - aa, 23.0 + aa, r);
         col = mix(col, sticker, art.a * onLabel);
       } else if (uFace > 0.5) {
