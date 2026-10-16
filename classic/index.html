@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<base href="/">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Visceral Vaults — Releases</title>
+<meta name="description" content="Visceral Vaults is an independent record label based in Montreal, Québec. Browse the full discography.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://fractalfantasy.net/libs/ffplayer/ffplayer-unified.css">
+<link rel="stylesheet" href="assets/css/style.css?v=36">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.webgpu.js",
+    "three/webgpu": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.webgpu.js",
+    "three/tsl": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.webgpu.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
+    "dat.gui": "https://cdn.jsdelivr.net/npm/dat.gui@0.7.9/build/dat.gui.module.js"
+  }
+}
+</script>
+</head>
+<body>
+
+<section class="hero" id="hero">
+  <canvas id="liquid-canvas" role="img" aria-label="Visceral Vaults"></canvas>
+  <img class="hero-fallback" src="assets/img/site/vvlogo.png" alt="Visceral Vaults" hidden>
+</section>
+
+<div class="releases-overlay" id="releases-overlay"></div>
+
+<button class="hero-cta" id="releases-cta">Releases</button>
+
+<!-- the mailing list (Visceral Vaults' own, kept on fractalfantasy.net: /api/vv/subscribe), as
+     fractalfantasy.net's MAILING LIST: opens below its button -->
+<div class="subscribe">
+  <button class="corner-cta" id="subscribe-cta" aria-expanded="false" aria-controls="subscribe-form">Subscribe</button>
+  <form class="subscribe-form" id="subscribe-form" data-api="https://fractalfantasy.net/api/vv/subscribe" hidden novalidate>
+    <h2>MAILING LIST</h2>
+    <label class="news-line"><input type="checkbox" name="consent" required aria-label="opt in"> Opt in for updates from Visceral Vaults</label>
+    <div class="news-entry">
+      <input type="email" name="email" autocomplete="email" placeholder="Email" aria-label="Email address" required>
+      <button type="submit">Sign up</button>
+    </div>
+    <input type="hidden" name="source" value="visceralvaults.com">
+    <label class="trap" aria-hidden="true">Website <input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+    <p class="status" role="status" aria-live="polite"></p>
+  </form>
+</div>
+
+<main class="wrap">
+  <section class="section">
+    <div class="release-grid" id="release-grid"></div>
+  </section>
+</main>
+
+<div class="modal-overlay">
+  <div class="modal">
+    <img class="modal-cover" src="" alt="">
+    <div class="modal-body">
+      <button class="modal-close" aria-label="Close">&times;</button>
+      <h3 class="modal-title"></h3>
+      <p class="modal-artist artist"></p>
+      <p class="modal-credit credit"></p>
+      <p class="modal-date date"></p>
+      <div class="modal-player"></div>
+      <div class="modal-platforms"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://fractalfantasy.net/libs/ffplayer/ffplayer-unified.js"></script>
+<script src="assets/js/main.js?v=10"></script>
+<script>
+  loadReleases().then((releases) => {
+    initReleaseGrid(releases, "#release-grid");
+    initBar(releases); // the player bar, starting on the newest release
+    // a link to a release (e.g. /#jashim, where /jashim sends people) opens the grid and its pop-up
+    const linked = releases.find((r) => "#" + r.id === location.hash);
+    if (linked) {
+      document.getElementById("releases-cta")?.click();
+      openModal(linked);
+    }
+  });
+
+  const releasesCta = document.getElementById("releases-cta");
+  const mainWrap = document.querySelector("main.wrap");
+  const releasesOverlay = document.getElementById("releases-overlay");
+
+  releasesCta?.addEventListener("click", () => {
+    const opening = !mainWrap?.classList.contains("open");
+    releasesOverlay?.classList.toggle("open", opening);
+
+    if (opening) {
+      // display:none blocks all hit-testing, so it has to come off before the
+      // opacity transition starts (opacity alone doesn't stop clicks from
+      // reaching the grid and being lost instead of hitting the WebGL canvas).
+      mainWrap.style.display = "block";
+      void mainWrap.offsetHeight; // force layout so the display change commits first
+      mainWrap.classList.add("open");
+    } else {
+      mainWrap?.classList.remove("open");
+      mainWrap?.addEventListener("transitionend", function onDone(e) {
+        if (e.target !== mainWrap || e.propertyName !== "opacity") return;
+        mainWrap.removeEventListener("transitionend", onDone);
+        mainWrap.style.display = "none";
+      });
+    }
+  });
+</script>
+<script type="module" src="assets/js/cloth-banner.js?v=65"></script>
+
+</body>
+</html>

@@ -1080,7 +1080,7 @@ function setRelease(i) {
   $('title').textContent = r.title;
   $('artist').textContent = r.artist;
   document.querySelectorAll('.thumb').forEach((b, j) => b.setAttribute('aria-pressed', String(j === i)));
-  history.replaceState(null, '', `#${r.id}`);
+  history.replaceState(null, '', `${location.pathname}${location.search}#${r.id}`);
 }
 
 // a new release: the case closes and drops away, comes back with the new disc (and opens, if asked)

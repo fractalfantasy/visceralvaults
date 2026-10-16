@@ -1,116 +1,105 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Visceral Vaults — Releases</title>
-<meta name="description" content="Visceral Vaults is an independent record label based in Montreal, Québec. Browse the full discography.">
+<meta charset="utf-8">
+<base href="/cd/">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Visceral Vaults</title>
+<meta name="description" content="Every Visceral Vaults release, in a jewel case you can open, turn and spin.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://fractalfantasy.net/libs/ffplayer/ffplayer-unified.css">
-<link rel="stylesheet" href="assets/css/style.css?v=36">
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.webgpu.js",
-    "three/webgpu": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.webgpu.js",
-    "three/tsl": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.webgpu.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
-    "dat.gui": "https://cdn.jsdelivr.net/npm/dat.gui@0.7.9/build/dat.gui.module.js"
+<!-- The Visceral Vaults catalogue as CDs: a clear jewel case (lit by a studio), the cover as the booklet in its
+     lid (and inside it, the release's notes), a disc of die-cut stickers from the cover in the clear tray. Tap
+     the case to open it, drag to turn it. The FF player at the bottom plays the whole catalogue; as it moves on
+     to another release, that release's case comes up and opens. cd.js does it all (three.js). -->
+<style>
+  :root { --ink: #111; --dim: #8a8a8a; --line: #e4e4e2; --page: #f6f6f4; --dock: rgba(255, 255, 255, .82); --bar: 60px; }
+  body.dark { --ink: #f2f2f2; --dim: #8a8a8a; --line: #2a2a2a; --page: #000; --dock: rgba(18, 18, 18, .82); }
+  .corner .on-dark { display: none; }
+  body.dark .corner .on-dark { display: block; }
+  body.dark .corner .on-light { display: none; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; overflow: hidden; background: var(--page); color: var(--ink);
+    font: 13px/1.4 Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased;
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+  canvas.dragging { cursor: grabbing; }
+  canvas.over { cursor: pointer; }
+
+  .corner { position: fixed; top: max(18px, env(safe-area-inset-top)); left: 20px; z-index: 2; }
+  .corner a { display: block; }
+  .corner img { width: 132px; display: block; }
+  .release { position: fixed; top: max(18px, env(safe-area-inset-top)); right: 70px; z-index: 2; text-align: right; }
+  /* the light / dark switch, in the top right corner */
+  .mode { position: fixed; top: max(14px, env(safe-area-inset-top)); right: 16px; z-index: 3; width: 34px; height: 34px; border: 0;
+    border-radius: 50%; cursor: pointer; display: grid; place-items: center; background: var(--ink); color: var(--page); }
+  .mode svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+  .release b { display: block; font-weight: 700; font-size: 14px; letter-spacing: .02em; }
+  .release span { color: var(--dim); }
+
+  .hint { position: fixed; left: 0; right: 0; bottom: calc(var(--bar) + 96px + env(safe-area-inset-bottom)); text-align: center;
+    color: var(--dim); font-size: 12px; letter-spacing: .02em; pointer-events: none; transition: opacity .6s; z-index: 2; }
+  .hint.gone { opacity: 0; }
+
+  .dock { position: fixed; left: 50%; bottom: calc(var(--bar) + 18px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 2;
+    display: flex; align-items: center; gap: 6px; padding: 7px; border-radius: 16px; background: var(--dock);
+    border: 1px solid var(--line); box-shadow: 0 8px 30px rgba(0, 0, 0, .07); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    max-width: calc(100vw - 20px); }
+  .covers { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+  .covers::-webkit-scrollbar { display: none; }
+  .thumb { flex: none; width: 40px; height: 40px; padding: 0; border: 0; border-radius: 3px; cursor: pointer; position: relative;
+    background: #ddd center / cover; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .08); transition: transform .2s; }
+  .thumb:hover { transform: scale(1.06); }
+  .thumb[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .mode:focus-visible, .thumb:focus-visible { outline: 2px solid #4a7dff; outline-offset: 2px; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .fail { position: fixed; inset: 0; display: none; place-items: center; text-align: center; padding: 24px; color: var(--dim); }
+  /* the FF player bar along the bottom (as on visceralvaults.com): black, a back button at its left */
+  #timeline { background: #d4d4d4; } /* the label's light grey, on the white bar and the black one */
+  #credits { color: white; mix-blend-mode: difference; }
+  #credits a:link, #credits a:visited { color: white; }
+  .ffplayer .back { position: fixed; left: 0; bottom: 0; width: 45px; height: 60px; border: none; outline: none; cursor: pointer;
+    background: black url("https://fractalfantasy.net/libs/ffplayer/img/fwd.svg") no-repeat center; transform: rotate(180deg); z-index: 100000001; }
+  .ffplayer .back:hover { opacity: 0.7; }
+  .ffplayer .back:active { opacity: 0.2; }
+  .ffplayer #pButton { left: 30px; }
+  .ffplayer .next { left: 75px; }
+  .ffplayer-playlist #timeline, .ffplayer-playlist #credits { left: 120px; }
+  /* on the white page the bar is white too: its black buttons inverted, the progress dark (the credits still
+     read across it, by the difference blend), the link list white; on black it stays as it is */
+  body:not(.dark) #audioplayer { background-color: #fff; border-top: 1px solid var(--line); }
+  body:not(.dark) #pButton, body:not(.dark) .ffplayer .next, body:not(.dark) .ffplayer .back { filter: invert(1); }
+  body:not(.dark) #volumeContainer { filter: invert(1); }
+  body:not(.dark) .ffplayer-links { background-color: #fff; border-color: var(--line); }
+  body:not(.dark) .ffplayer-links a { color: #555; }
+  body:not(.dark) .ffplayer-links a:hover { color: #000; }
+  @media (max-width: 560px) {
+    .corner img { width: 108px; }
+    .release { top: auto; bottom: calc(var(--bar) + 140px + env(safe-area-inset-bottom)); left: 20px; right: 20px; text-align: center; }
+    .hint { bottom: calc(var(--bar) + 78px + env(safe-area-inset-bottom)); }
+    .thumb { width: 36px; height: 36px; }
   }
-}
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
 </script>
 </head>
 <body>
-
-<section class="hero" id="hero">
-  <canvas id="liquid-canvas" role="img" aria-label="Visceral Vaults"></canvas>
-  <img class="hero-fallback" src="assets/img/site/vvlogo.png" alt="Visceral Vaults" hidden>
-</section>
-
-<div class="releases-overlay" id="releases-overlay"></div>
-
-<button class="hero-cta" id="releases-cta">Releases</button>
-
-<!-- the mailing list (Visceral Vaults' own, kept on fractalfantasy.net: /api/vv/subscribe), as
-     fractalfantasy.net's MAILING LIST: opens below its button -->
-<div class="subscribe">
-  <button class="corner-cta" id="subscribe-cta" aria-expanded="false" aria-controls="subscribe-form">Subscribe</button>
-  <form class="subscribe-form" id="subscribe-form" data-api="https://fractalfantasy.net/api/vv/subscribe" hidden novalidate>
-    <h2>MAILING LIST</h2>
-    <label class="news-line"><input type="checkbox" name="consent" required aria-label="opt in"> Opt in for updates from Visceral Vaults</label>
-    <div class="news-entry">
-      <input type="email" name="email" autocomplete="email" placeholder="Email" aria-label="Email address" required>
-      <button type="submit">Sign up</button>
-    </div>
-    <input type="hidden" name="source" value="visceralvaults.com">
-    <label class="trap" aria-hidden="true">Website <input type="text" name="website" tabindex="-1" autocomplete="off"></label>
-    <p class="status" role="status" aria-live="polite"></p>
-  </form>
+<div class="corner"><a href="/" aria-label="Visceral Vaults home"><img class="on-light" src="../assets/img/site/visceral-vaults-wordmark.png" alt="VISCERAL VAULTS"><img class="on-dark" src="../assets/img/site/visceral-vaults-wordmark-grey.png" alt=""></a></div>
+<div class="release" aria-live="polite"><b id="title"></b><span id="artist"></span></div>
+<div class="hint" id="hint">Tap the case to open it, the disc to play it, the booklet to read it · drag to turn it · pinch to zoom</div>
+<button class="mode" id="dark" aria-pressed="false" title="Light / dark (B)"><span class="sr">Black background</span>
+  <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5"/><path d="M12 4.5a7.5 7.5 0 0 0 0 15z" fill="currentColor"/></svg></button>
+<div class="dock" role="toolbar" aria-label="CD">
+  <div class="covers" id="covers"></div>
 </div>
-
-<main class="wrap">
-  <section class="section">
-    <div class="release-grid" id="release-grid"></div>
-  </section>
-</main>
-
-<div class="modal-overlay">
-  <div class="modal">
-    <img class="modal-cover" src="" alt="">
-    <div class="modal-body">
-      <button class="modal-close" aria-label="Close">&times;</button>
-      <h3 class="modal-title"></h3>
-      <p class="modal-artist artist"></p>
-      <p class="modal-credit credit"></p>
-      <p class="modal-date date"></p>
-      <div class="modal-player"></div>
-      <div class="modal-platforms"></div>
-    </div>
-  </div>
-</div>
-
+<div class="fail" id="fail">This page needs WebGL, and the browser couldn't start it.</div>
 <script src="https://fractalfantasy.net/libs/ffplayer/ffplayer-unified.js"></script>
-<script src="assets/js/main.js?v=10"></script>
-<script>
-  loadReleases().then((releases) => {
-    initReleaseGrid(releases, "#release-grid");
-    initBar(releases); // the player bar, starting on the newest release
-    // a link to a release (e.g. /#jashim, where /jashim sends people) opens the grid and its pop-up
-    const linked = releases.find((r) => "#" + r.id === location.hash);
-    if (linked) {
-      document.getElementById("releases-cta")?.click();
-      openModal(linked);
-    }
-  });
-
-  const releasesCta = document.getElementById("releases-cta");
-  const mainWrap = document.querySelector("main.wrap");
-  const releasesOverlay = document.getElementById("releases-overlay");
-
-  releasesCta?.addEventListener("click", () => {
-    const opening = !mainWrap?.classList.contains("open");
-    releasesOverlay?.classList.toggle("open", opening);
-
-    if (opening) {
-      // display:none blocks all hit-testing, so it has to come off before the
-      // opacity transition starts (opacity alone doesn't stop clicks from
-      // reaching the grid and being lost instead of hitting the WebGL canvas).
-      mainWrap.style.display = "block";
-      void mainWrap.offsetHeight; // force layout so the display change commits first
-      mainWrap.classList.add("open");
-    } else {
-      mainWrap?.classList.remove("open");
-      mainWrap?.addEventListener("transitionend", function onDone(e) {
-        if (e.target !== mainWrap || e.propertyName !== "opacity") return;
-        mainWrap.removeEventListener("transitionend", onDone);
-        mainWrap.style.display = "none";
-      });
-    }
-  });
-</script>
-<script type="module" src="assets/js/cloth-banner.js?v=65"></script>
-
+<script type="module" src="cd.js"></script>
 </body>
 </html>
