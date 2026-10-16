@@ -713,7 +713,7 @@ const NOTES = {
     credits: ['Original by DVA', 'Remix by Sinjin Hawke', 'Vocals: Killa P'],
   },
   'yea-hoe-mixes': {
-    cat: 'EP', caption: 'Yea Hoe, four ways', photo: 'cd/press/gangsta-boo.webp',
+    cat: 'EP', caption: 'Yea Hoe, four ways', chromeNames: true, photo: 'cd/press/gangsta-boo.webp',
     title: ['cd/press/yea-hoe-title.webp', 'cd/press/mixes-title.webp'],
     text: ['“Yea Hoe”, four ways. First the Devil’s Daughter Mix: Sinjin’s own early, ruthlessly stripped-back cut, named for the alter-ego Gangsta Boo rapped under in Three 6 Mafia’s early years.',
       'Then Richelle’s “Virtual Geisha” remix, from the Brussels producer behind Pelican Fly, and Vjuan Allure, the Washington D.C. ballroom DJ behind the classic 2000 edit of “The Ha Dance”, taking it to the ballroom; and the instrumental.',
@@ -735,7 +735,7 @@ const NOTES = {
     credits: ['Produced by Just Blaze & Sinjin Hawke'],
   },
   'yea-hoe': {
-    cat: 'Single', caption: 'Memphis meets Montreal · 2013', photo: 'cd/press/gangsta-boo-pink.webp',
+    cat: 'Single', caption: 'Memphis meets Montreal · 2013', chromeNames: true, photo: 'cd/press/gangsta-boo-pink.webp',
     title: ['cd/press/yea-hoe-title.webp'],
     text: ['A mutual friend linked them at a show in Atlanta. Three 6 Mafia’s Gangsta Boo cut “Yea Hoe” with Sinjin Hawke in two takes, and it went out as a free download in September 2013.',
       'Hawke built it as orchestral crunk, horns and strings swelling under Boo’s bouncing Memphis flow; the title is her signature ad-lib.',
@@ -1013,11 +1013,27 @@ function pressPage(g, N, r, notes, { photo, logo, titleArt = [], square = false 
     }
     return x - h * 0.3;
   };
-  g.font = '500 27px Inter';
-  const asideW = aside && !guestName ? 14 + g.measureText(aside).width : 0;
-  let nameH = 40;
-  while (nameH > 16 && layoutLine(nameH, false) + asideW > N - M) nameH -= 2;
-  ax = layoutLine(nameH, true) + 14;
+  if (notes.chromeNames) {
+    // (on Gangsta Boo's records: her Both Worlds chrome, taller than the type, so it stands a little lower)
+    g.font = '500 27px Inter';
+    const asideW = aside && !guestName ? 14 + g.measureText(aside).width : 0;
+    let nameH = 40;
+    while (nameH > 16 && layoutLine(nameH, false) + asideW > N - M) nameH -= 2;
+    top += nameH * 0.2;
+    ax = layoutLine(nameH, true) + 14;
+  } else {
+    // everywhere else, the names in plain bold capitals, a guest beside them
+    g.font = '700 27px Inter';
+    g.fillStyle = INK;
+    g.fillText(artist.toUpperCase(), ax, top);
+    ax += g.measureText(artist.toUpperCase()).width + 14;
+    if (guestName) {
+      g.font = '500 27px Inter';
+      g.fillStyle = '#555';
+      g.fillText(aside, ax, top);
+      ax += g.measureText(aside).width;
+    }
+  }
   if (aside && !guestName) {
     g.font = '500 27px Inter';
     g.fillStyle = '#555';
