@@ -1141,6 +1141,14 @@ function pressPage(g, N, r, notes, { photo, logo, titleArt = [], square = false 
   caps([r.credit, `℗ & © ${y || new Date().getFullYear()} Visceral Vaults, a sublabel of Fractal Fantasy`].filter(Boolean).join('   ·   '), M, N - M, 12, '#6a6a6a', 'left', 0.12);
 }
 
+// The services a release is on, and their marks (24-unit squares, filled in the page's ink)
+const SERVICES = [
+  ['spotify', 'Spotify', '<path d="M12 1.5a10.5 10.5 0 1 0 0 21 10.5 10.5 0 0 0 0-21Zm4.82 15.15a.65.65 0 0 1-.9.22c-2.46-1.5-5.55-1.84-9.2-1.01a.65.65 0 1 1-.29-1.27c3.99-.91 7.42-.52 10.17 1.16.31.19.41.59.22.9Zm1.29-2.86a.82.82 0 0 1-1.12.27c-2.82-1.73-7.11-2.23-10.44-1.22a.82.82 0 0 1-.47-1.57c3.8-1.15 8.53-.59 11.77 1.4.38.24.5.74.26 1.12Zm.11-2.98C14.84 8.8 9.26 8.61 6.03 9.59a.98.98 0 1 1-.57-1.88c3.71-1.13 9.88-.91 13.77 1.4a.98.98 0 0 1-1.01 1.7Z"/>'],
+  ['appleMusic', 'Apple Music', '<path d="M5.5 2h13A3.5 3.5 0 0 1 22 5.5v13a3.5 3.5 0 0 1-3.5 3.5h-13A3.5 3.5 0 0 1 2 18.5v-13A3.5 3.5 0 0 1 5.5 2Zm11.3 3.1-7.5 1.6a.7.7 0 0 0-.55.68v7.7a2.4 2.4 0 0 0-1-.2c-1.24 0-2.25.8-2.25 1.8S6.51 18.5 7.75 18.5 10 17.7 10 16.7V10.1l6-1.28v4.38a2.4 2.4 0 0 0-1-.2c-1.24 0-2.25.8-2.25 1.8s1.01 1.8 2.25 1.8 2.25-.8 2.25-1.8V5.79a.7.7 0 0 0-.85-.69Z" fill-rule="evenodd"/>'],
+  ['youtube', 'YouTube', '<path d="M22.54 6.94a2.78 2.78 0 0 0-1.96-1.97C18.84 4.5 12 4.5 12 4.5s-6.84 0-8.58.47A2.78 2.78 0 0 0 1.46 6.94 29 29 0 0 0 1 12a29 29 0 0 0 .46 5.06 2.78 2.78 0 0 0 1.96 1.97C5.16 19.5 12 19.5 12 19.5s6.84 0 8.58-.47a2.78 2.78 0 0 0 1.96-1.97A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.06ZM9.75 15.27V8.73L15.45 12l-5.7 3.27Z"/>'],
+  ['bandcamp', 'Bandcamp', '<path d="M0 18.75 7.44 5.25H24l-7.44 13.5H0Z"/>'],
+];
+
 // ---------------------------------------------------------------- state
 const state = {
   index: 0,
@@ -1165,10 +1173,12 @@ function setRelease(i) {
   $('title').textContent = r.title;
   $('artist').textContent = r.artist;
   // where to hear it: the streaming services it's on, and its own links (a single's "Listen", a pre-save)
-  const services = [['spotify', 'Spotify'], ['appleMusic', 'Apple Music'], ['youtube', 'YouTube'], ['bandcamp', 'Bandcamp']];
-  $('links').replaceChildren(...services.filter(([k]) => r[k]).map(([k, label]) => [label, r[k]])
-    .concat((r.links || []).map(l => [l.label, l.href]))
-    .map(([label, href]) => Object.assign(document.createElement('a'), { href, target: '_blank', rel: 'noopener', textContent: label })));
+  $('links').replaceChildren(...SERVICES.filter(([k]) => r[k]).map(([k, label, icon]) => {
+    const a = Object.assign(document.createElement('a'), { href: r[k], target: '_blank', rel: 'noopener', title: label });
+    a.setAttribute('aria-label', `${r.title} on ${label}`);
+    a.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${icon}</svg>`;
+    return a;
+  }));
   document.querySelectorAll('.thumb').forEach((b, j) => b.setAttribute('aria-pressed', String(j === i)));
   history.replaceState(null, '', `${location.pathname}${location.search}#${r.id}`);
 }
