@@ -44,6 +44,15 @@ camera.lookAt(0, 0, 8);
 
 const pmrem = new THREE.PMREMGenerator(renderer);
 const room = new RoomEnvironment();
+// one more softbox, a long strip high behind the case, near where the lid mirrors the room for the camera: as the
+// case drifts and turns, its highlight sweeps across the lid
+const STRIP = [2.2, 11.6, -8.6];
+{
+  const strip = new THREE.Mesh(new THREE.PlaneGeometry(8, 0.8), new THREE.MeshBasicMaterial({ color: new THREE.Color().setScalar(12), side: THREE.DoubleSide }));
+  strip.position.set(...STRIP);
+  strip.lookAt(0, 1.5, 0);
+  room.add(strip);
+}
 scene.environment = pmrem.fromScene(room, 0.03).texture;
 scene.environmentIntensity = 1.0;
 
@@ -56,7 +65,7 @@ cubeCamera.update(renderer, room);
 // the lamps of that room, as directions from the middle (for the disc's rainbows) and how bright each is
 const LAMPS = [
   [-16.116, 14.37, 8.208, 50], [-16.109, 18.021, -8.207, 50], [14.904, 12.198, -1.832, 17],
-  [-0.462, 8.89, 14.52, 43], [3.235, 11.486, -12.541, 20],
+  [-0.462, 8.89, 14.52, 43], [3.235, 11.486, -12.541, 20], [...STRIP, 12],
 ].map(([x, y, z, p]) => ({ dir: new THREE.Vector3(x, y - 1.5, z).normalize(), power: p / 50 }));
 
 // a key light for the shadow on the table (the room does the rest of the lighting)
@@ -118,12 +127,16 @@ const plasticUniforms = {
   uGain: { value: 0.55 },    // the room's brightness, against the page
   uIor: { value: 1.59 },
 };
-function plasticMaterial(rod) {
+function plasticMaterial(rod, boost = 1) {
   return new THREE.ShaderMaterial({
-    uniforms: { ...plasticUniforms, uRod: { value: rod ? 1 : 0 } },
+    uniforms: { ...plasticUniforms, uRod: { value: rod ? 1 : 0 }, uBoost: { value: boost } },
     transparent: true,
     depthWrite: rod,
     side: THREE.DoubleSide,
+    // premultiplied: what a sheet reflects adds to what's behind it, so a highlight brightens without greying
+    blending: THREE.CustomBlending,
+    blendSrc: THREE.OneFactor,
+    blendDst: THREE.OneMinusSrcAlphaFactor,
     vertexShader: /* glsl */`
       varying vec3 vWorld;
       varying vec3 vN;
@@ -138,10 +151,21 @@ function plasticMaterial(rod) {
       uniform float uGain;
       uniform float uIor;
       uniform float uRod;
+      uniform float uBoost;
       varying vec3 vWorld;
       varying vec3 vN;
       vec3 room(vec3 d, float lod) { return textureLod(uRoom, d, lod).rgb * uGain; }
       float schlick(float c, float f0) { return f0 + (1.0 - f0) * pow(1.0 - c, 5.0); }
+
+      // the room seen through a rod at one wavelength: in, off its far side, out (where it bends again)
+      vec3 throughRod(vec3 V, vec3 N, vec3 R, float ior, float lod) {
+        vec3 inside = refract(-V, N, 1.0 / ior);
+        vec3 bounced = reflect(inside, normalize(N * 0.6 + R * 0.4));
+        vec3 out1 = refract(bounced, -N, ior);
+        if (dot(out1, out1) < 0.01) out1 = reflect(bounced, -N); // trapped: it bounces again
+        return room(out1, lod);
+      }
+
       void main() {
         vec3 N = normalize(vN);
         vec3 V = normalize(cameraPosition - vWorld);
@@ -150,26 +174,35 @@ function plasticMaterial(rod) {
         float f0 = pow((uIor - 1.0) / (uIor + 1.0), 2.0);
         float F = schlick(c, f0);
         vec3 R = reflect(-V, N);
+        // a direction across the surface, for splitting the colours apart a little (chromatic aberration)
+        vec3 across = normalize(cross(N, V) + vec3(1e-4, 0.0, 0.0));
         vec3 mirrored = room(R, 0.1);
+        // the studio's lamps reflected: each colour from a slightly different angle, so a highlight's edges
+        // fringe red on one side and blue on the other
+        vec3 lamps = vec3(room(normalize(R + across * 0.012), 0.0).r, room(R, 0.0).g, room(normalize(R - across * 0.012), 0.0).b);
+        vec3 glint = max(lamps - 1.1, 0.0);
         if (uRod < 0.5) {
-          // both faces of a thin sheet reflect; face on it takes almost nothing, at a slant it's a mirror
+          // both faces of a thin sheet reflect: face on, only the bright lamps show; at a slant it's a mirror
           float both = 2.0 * F / (1.0 + F);
           float edge = max(both - 2.0 * f0 / (1.0 + f0), 0.0);
-          gl_FragColor = vec4(mirrored, clamp(edge + 0.03, 0.0, 1.0));
+          float a = clamp(edge + 0.03, 0.0, 1.0);
+          gl_FragColor = vec4(mirrored * a + glint * both * 0.9 * uBoost, a);
           return;
         }
-        // into the rod, off its far side, and back out: the way out bends again, so it lands elsewhere in the room
-        vec3 inside = refract(-V, N, 1.0 / uIor);
-        vec3 bounced = reflect(inside, normalize(N * 0.6 + R * 0.4));
-        vec3 out1 = refract(bounced, -N, uIor);
-        if (dot(out1, out1) < 0.01) out1 = reflect(bounced, -N); // trapped: it bounces again
-        vec3 through = room(out1, 0.25) * vec3(0.93, 0.96, 1.0);
-        gl_FragColor = vec4(mix(through, mirrored, F), 0.7 + 0.3 * F);
+        // polystyrene bends red a little less than blue: the rods split the room into colour at their edges
+        vec3 through = vec3(
+          throughRod(V, N, R, uIor - 0.022, 0.25).r,
+          throughRod(V, N, R, uIor, 0.25).g,
+          throughRod(V, N, R, uIor + 0.022, 0.25).b
+        ) * vec3(0.93, 0.96, 1.0);
+        float a = 0.7 + 0.3 * F;
+        gl_FragColor = vec4(mix(through, mirrored, F) * a + glint * F * 0.8, a);
       }`,
   });
 }
 const plastic = plasticMaterial(true);
 const sheet = plasticMaterial(false);
+const lidSheet = plasticMaterial(false, 1.3); // the front of the case: the highlight people look for
 
 const caseRoot = new THREE.Group();   // dragged and turned
 const content = new THREE.Group();    // slides over as the lid opens, so the open pair stays centred
@@ -263,8 +296,8 @@ const discShader = {
     uniform vec3 uTint;
     uniform samplerCube uRoom;
     uniform float uFace;
-    uniform vec3 uLampDir[5];
-    uniform float uLampPower[5];
+    uniform vec3 uLampDir[6];
+    uniform float uLampPower[6];
     uniform float uLight;
     uniform float uMirror;
     uniform float uRainbow;
@@ -292,7 +325,7 @@ const discShader = {
     // through the middle of the disc, its first, second and third orders one after another.
     vec3 rainbows(vec3 V, vec3 radial, vec3 along) {
       vec3 c = vec3(0.0);
-      for (int i = 0; i < 5; i++) {
+      for (int i = 0; i < 6; i++) {
         vec3 s = uLampDir[i] + V;
         float a = dot(s, along);
         float spoke = exp(-a * a / 0.028); // the lamps are softboxes, not points: a broad spoke
@@ -392,7 +425,7 @@ const lid = new THREE.Group();
 lid.position.set(W / 2 - 0.6, 0, -1.5);
 hinge.add(lid);
 {
-  lid.add(part(slab(roundRect(W, H, R), 1.3, 1.1), sheet));
+  lid.add(part(slab(roundRect(W, H, R), 1.3, 1.1), lidSheet));
   for (const y of [-1, 1]) {
     const lip = part(new THREE.BoxGeometry(W - 14, 1.3, 4.2), plastic, true);
     lip.position.set(5, y * (H / 2 - 0.65), -0.6);
@@ -487,7 +520,9 @@ const composite = new FullScreenQuad(new THREE.ShaderMaterial({
     }
     void main() {
       vec3 c = texture2D(tScene, vUv).rgb;
-      vec3 s = texture2D(tStars, vUv).rgb * 0.5;
+      // the flares split a little by colour toward the frame's edges, as a lens's do
+      vec2 ca = (vUv - 0.5) * 0.006;
+      vec3 s = vec3(texture2D(tStars, vUv + ca).r, texture2D(tStars, vUv).g, texture2D(tStars, vUv - ca).b) * 0.5;
       float k = clamp(dot(s, vec3(0.3333)), 0.0, 1.0);
       c = mix(c, vec3(0.5, 0.66, 1.0) * c, k * 0.55 * (1.0 - uDark)) + s; // (on black, added light shows as it is)
       gl_FragColor = vec4(toSRGB(shoulder(c)), 1.0);
@@ -496,17 +531,18 @@ const composite = new FullScreenQuad(new THREE.ShaderMaterial({
 
 let portrait = false;
 let baseFov = 26;
+let openFov = 26;
 function resize() {
   const w = innerWidth, h = innerHeight, dpr = renderer.getPixelRatio();
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
-  // On a tall screen the case turns a quarter (hinge at the top, so the lid opens upward and the open case stacks
-  // down the screen) and the closed case fills the width. On a wide one it opens to the left, both halves in frame.
+  // A case opens sideways, the lid to the left, on every screen. On a tall one the closed case fills the width,
+  // and the camera pulls back as the lid opens so both halves fit across.
   portrait = camera.aspect < 0.85;
   const distance = camera.position.distanceTo(new THREE.Vector3(0, 0, 8));
-  baseFov = portrait
-    ? THREE.MathUtils.radToDeg(2 * Math.atan(84 / (distance * camera.aspect)))
-    : THREE.MathUtils.clamp(26 * Math.max(1, 1.25 / camera.aspect), 26, 52);
+  const fit = (halfWidth) => THREE.MathUtils.radToDeg(2 * Math.atan(halfWidth / (distance * camera.aspect)));
+  baseFov = portrait ? fit(84) : THREE.MathUtils.clamp(26 * Math.max(1, 1.25 / camera.aspect), 26, 52);
+  openFov = portrait ? fit(158) : baseFov;
   camera.fov = baseFov;
   camera.updateProjectionMatrix();
   hdr.setSize(w * dpr, h * dpr);
@@ -678,7 +714,7 @@ const state = {
   open: 0, openTarget: 0,
   spin: false, spinSpeed: 0, discAngle: 0,
   yaw: -0.35, pitch: 0, yawVel: 0, pitchVel: 0,
-  scale: 1, swap: null,
+  scale: 1, swap: null, idle: 0, driftYaw: 0, driftPitch: 0,
 };
 
 function setRelease(i) {
@@ -849,8 +885,14 @@ function hitsCase(x, y) {
   return raycaster.intersectObjects(parts, false).length > 0;
 }
 let drag = null;
+let lastTouch = performance.now();
+for (const type of ['pointerdown', 'pointermove', 'keydown', 'wheel']) addEventListener(type, () => { if (type !== 'pointermove' || drag) lastTouch = performance.now(); }, { passive: true });
 canvas.addEventListener('pointerdown', (e) => {
   canvas.setPointerCapture(e.pointerId);
+  // take the case over from wherever its drift has it, without a jump
+  state.yaw += state.driftYaw;
+  state.pitch += state.driftPitch;
+  state.driftYaw = state.driftPitch = state.idle = 0;
   drag = { x: e.clientX, y: e.clientY, startX: e.clientX, startY: e.clientY, t: performance.now(), moved: false };
 });
 canvas.addEventListener('pointermove', (e) => {
@@ -898,10 +940,10 @@ renderer.setAnimationLoop(() => {
   state.open += openVel * dt;
   const o = THREE.MathUtils.clamp(state.open, -0.05, 1.04);
   hinge.rotation.y = -o * THREE.MathUtils.degToRad(176);
-  content.position.x = (W / 2) * (portrait ? 0.45 : 1) * ease(THREE.MathUtils.clamp(o, 0, 1));
+  content.position.x = (W / 2) * ease(THREE.MathUtils.clamp(o, 0, 1));
   if (portrait) {
-    // on a tall screen the open case stands twice as tall: pull back to keep it clear of the title and the dock
-    const fov = baseFov * (1 + 0.32 * ease(THREE.MathUtils.clamp(o, 0, 1)));
+    // on a tall screen the open case is twice as wide as the screen allows: pull back as it opens
+    const fov = THREE.MathUtils.lerp(baseFov, openFov, ease(THREE.MathUtils.clamp(o, 0, 1)));
     if (Math.abs(camera.fov - fov) > 0.01) { camera.fov = fov; camera.updateProjectionMatrix(); }
   }
   disc.position.z = -1.0 + 1.6 * Math.max(0, o - 0.6); // the disc rises a hair off the rosette once open
@@ -920,11 +962,17 @@ renderer.setAnimationLoop(() => {
     state.pitchVel *= Math.exp(-dt * 3.2);
     state.pitch += (0 - state.pitch) * Math.min(1, dt * 0.8);
   }
-  const turn = portrait ? -Math.PI / 2 + 0.24 : 0; // (and less of a three-quarter view, to fill the width)
-  disc.rotation.z = state.discAngle - turn;         // the disc's art stays upright either way
-  // the booklet is square: it turns by a whole quarter with the case, so it still fits its lid
-  bookletFront.rotation.z = bookletInside.rotation.z = portrait ? Math.PI / 2 : 0;
-  caseRoot.rotation.set(state.pitch + Math.sin(time * 0.6) * 0.025, turn + state.yaw + Math.sin(time * 0.37) * 0.04, 0, 'YXZ');
+  const turn = portrait ? 0.24 : 0;                 // a tall screen: less of a three-quarter view, to fill the width
+  disc.rotation.z = state.discAngle - turn;         // the disc's art stays upright
+  // Left alone for a few seconds, the case drifts: a slow, small turn and tilt (two slow waves, so it never quite
+  // repeats) that walks the studio's highlights across the lid and the disc. A touch takes over at once.
+  const idleFor = (performance.now() - lastTouch) / 1000;
+  state.idle += ((idleFor > 2.5 ? 1 : 0) - state.idle) * Math.min(1, dt * (idleFor > 2.5 ? 0.35 : 4));
+  const driftYaw = (Math.sin(time * 0.19) * 0.17 + Math.sin(time * 0.083 + 1.3) * 0.08) * state.idle;
+  const driftPitch = (Math.sin(time * 0.14 + 0.7) * 0.075 + Math.sin(time * 0.061) * 0.035) * state.idle;
+  state.driftYaw = driftYaw;
+  state.driftPitch = driftPitch;
+  caseRoot.rotation.set(state.pitch + driftPitch + Math.sin(time * 0.6) * 0.012, turn + state.yaw + driftYaw, 0, 'YXZ');
   caseRoot.position.y = 14 + Math.sin(time * 0.8) * 1.2;
 
   // changing release: out (shrink, a quarter turn), swap the disc, back in with a bounce

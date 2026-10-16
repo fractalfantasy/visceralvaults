@@ -71,6 +71,15 @@
   .ffplayer #pButton { left: 30px; }
   .ffplayer .next { left: 75px; }
   .ffplayer-playlist #timeline, .ffplayer-playlist #credits { left: 120px; }
+  /* on the white page the bar is white too: its black buttons inverted, the progress dark (the credits still
+     read across it, by the difference blend), the link list white; on black it stays as it is */
+  body:not(.dark) #audioplayer { background-color: #fff; border-top: 1px solid var(--line); }
+  body:not(.dark) #pButton, body:not(.dark) .ffplayer .next, body:not(.dark) .ffplayer .back { filter: invert(1); }
+  body:not(.dark) #timeline { background: #161616; }
+  body:not(.dark) #volumeContainer { filter: invert(1); }
+  body:not(.dark) .ffplayer-links { background-color: #fff; border-color: var(--line); }
+  body:not(.dark) .ffplayer-links a { color: #555; }
+  body:not(.dark) .ffplayer-links a:hover { color: #000; }
   @media (max-width: 560px) {
     .corner img { width: 108px; }
     .release { top: auto; bottom: calc(var(--bar) + 140px + env(safe-area-inset-bottom)); left: 20px; right: 20px; text-align: center; }
