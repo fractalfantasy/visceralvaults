@@ -656,7 +656,7 @@ const texture = (url, srgb) => {
 // when it first comes up, so the one on screen isn't kept waiting behind the rest; the others follow, one at a
 // time, once it's in.
 const BOOKLETS = { jashim: 'booklets/jashim.jpg' };
-const V = '?v=5';   // bump when a picture changes, so browsers don't keep the old one
+const V = '?v=6';   // bump when a picture changes, so browsers don't keep the old one
 const loaded = new Map();
 function releaseTextures(i) {
   if (!loaded.has(i)) {
@@ -713,7 +713,7 @@ const NOTES = {
     credits: ['Original by DVA', 'Remix by Sinjin Hawke', 'Vocals: Killa P'],
   },
   'yea-hoe-mixes': {
-    cat: 'EP', caption: 'Yea Hoe, four ways', logo: 'cd/press/gangsta-boo-logo.webp', photo: 'cd/press/gangsta-boo.webp',
+    cat: 'EP', caption: 'Yea Hoe, four ways', photo: 'cd/press/gangsta-boo.webp',
     title: ['cd/press/yea-hoe-title.webp', 'cd/press/mixes-title.webp'],
     text: ['“Yea Hoe”, four ways. First the Devil’s Daughter Mix: Sinjin’s own early, ruthlessly stripped-back cut, named for the alter-ego Gangsta Boo rapped under in Three 6 Mafia’s early years.',
       'Then Richelle’s “Virtual Geisha” remix, from the Brussels producer behind Pelican Fly, and Vjuan Allure, the Washington D.C. ballroom DJ behind the classic 2000 edit of “The Ha Dance”, taking it to the ballroom; and the instrumental.',
@@ -728,16 +728,16 @@ const NOTES = {
     credits: ['Vocals: Sicko Mobb', 'Produced by Sinjin Hawke & Drippin'],
   },
   one: {
-    cat: 'Single', caption: 'Red Bull Music Academy, New York',
-    text: ['Made at the 2013 Red Bull Music Academy in New York, “One” brought together Just Blaze, the producer behind a generation of Roc-A-Fella classics, and Sinjin Hawke.',
+    cat: 'Single', caption: 'Made in New York',
+    text: ['Made in New York in 2013, “One” brought together Just Blaze, the producer behind a generation of Roc-A-Fella classics, and Sinjin Hawke.',
       'Blaze reaches back to the pitched-up “chipmunk soul” he made his name with, over an epic, slow-building intro and a bassline that never lets go.',
       'FACT premiered it as a free download in January 2014. There’s no big drop; in Complex’s words, it runs on “just copious amounts of feels”.'],
     credits: ['Produced by Just Blaze & Sinjin Hawke'],
   },
   'yea-hoe': {
-    cat: 'Single', caption: 'Red Bull Music Academy · 2013', logo: 'cd/press/gangsta-boo-logo.webp', photo: 'cd/press/gangsta-boo-pink.webp',
+    cat: 'Single', caption: 'Memphis meets Montreal · 2013', photo: 'cd/press/gangsta-boo-pink.webp',
     title: ['cd/press/yea-hoe-title.webp'],
-    text: ['A mutual friend linked them at a show in Atlanta. Three 6 Mafia’s Gangsta Boo cut “Yea Hoe” with Sinjin Hawke in two takes, and Red Bull Music Academy gave it away as a free download in September 2013.',
+    text: ['A mutual friend linked them at a show in Atlanta. Three 6 Mafia’s Gangsta Boo cut “Yea Hoe” with Sinjin Hawke in two takes, and it went out as a free download in September 2013.',
       'Hawke built it as orchestral crunk, horns and strings swelling under Boo’s bouncing Memphis flow; the title is her signature ad-lib.',
       'It landed weeks after her long-awaited mixtape It’s Game Involved. FACT called the two “surprisingly apt collaborators”.'],
     credits: ['Vocals: Gangsta Boo', 'Produced by Sinjin Hawke', 'In memory of Gangsta Boo, 1979–2023'],
