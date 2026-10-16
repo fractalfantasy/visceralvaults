@@ -80,7 +80,7 @@ const STRIP = [2.2, 11.6, -8.6];
   room.add(strip);
 }
 scene.environment = pmrem.fromScene(room, 0.03).texture;
-scene.environmentIntensity = 1.0;
+scene.environmentIntensity = 0.86;
 
 // the same room as a plain cube map with mips, for the disc's own shader to look things up in
 const roomCube = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter });
@@ -95,7 +95,7 @@ const LAMPS = [
 ].map(([x, y, z, p]) => ({ dir: new THREE.Vector3(x, y - 1.5, z).normalize(), power: p / 50 }));
 
 // a key light for the shadow on the table (the room does the rest of the lighting)
-const sun = new THREE.DirectionalLight(0xffffff, 0.6);
+const sun = new THREE.DirectionalLight(0xffffff, 0.5);
 sun.position.set(-210, 430, -170);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
@@ -204,9 +204,10 @@ function plasticMaterial(rod, boost = 1) {
         vec3 across = normalize(cross(N, V) + vec3(1e-4, 0.0, 0.0));
         vec3 mirrored = room(R, 0.1);
         // the studio's lamps reflected: each colour from a slightly different angle, so a highlight's edges
-        // fringe red on one side and blue on the other
-        vec3 lamps = vec3(room(normalize(R + across * 0.012), 0.0).r, room(R, 0.0).g, room(normalize(R - across * 0.012), 0.0).b);
-        vec3 glint = max(lamps - 1.1, 0.0);
+        // fringe red on one side and blue on the other. Read a few mips down: at full size a lamp's edge is a
+        // handful of the cube's texels, and its fringes show them as steps
+        vec3 lamps = vec3(room(normalize(R + across * 0.006), 1.8).r, room(R, 1.8).g, room(normalize(R - across * 0.006), 1.8).b);
+        vec3 glint = max(lamps - 1.1, 0.0) * 0.8;
         if (uRod < 0.5) {
           // both faces of a thin sheet reflect: face on, only the bright lamps show; at a slant it's a mirror
           float both = 2.0 * F / (1.0 + F);
@@ -228,7 +229,7 @@ function plasticMaterial(rod, boost = 1) {
 }
 const plastic = plasticMaterial(true);
 const sheet = plasticMaterial(false);
-const lidSheet = plasticMaterial(false, 1.3); // the front of the case: the highlight people look for
+const lidSheet = plasticMaterial(false, 1.0); // the front of the case: the highlight people look for
 
 const caseRoot = new THREE.Group();   // dragged and turned
 const content = new THREE.Group();    // slides over as the lid opens, so the open pair stays centred
@@ -474,9 +475,9 @@ const booklet = new THREE.Group();
 booklet.position.set(2, 0, 0.7);
 lid.add(booklet);
 const bookletFront = part(new THREE.PlaneGeometry(BOOK, BOOK),
-  new THREE.MeshPhysicalMaterial({ roughness: 0.4, clearcoat: 0.5, clearcoatRoughness: 0.2, envMapIntensity: 0.5 }));
+  new THREE.MeshPhysicalMaterial({ roughness: 0.4, clearcoat: 0.5, clearcoatRoughness: 0.2, envMapIntensity: 0.42 }));
 bookletFront.position.z = 0.15;
-const bookletInside = part(new THREE.PlaneGeometry(BOOK, BOOK), new THREE.MeshPhysicalMaterial({ roughness: 0.75, specularIntensity: 0.3, envMapIntensity: 0.42 }));
+const bookletInside = part(new THREE.PlaneGeometry(BOOK, BOOK), new THREE.MeshPhysicalMaterial({ roughness: 0.75, specularIntensity: 0.15, envMapIntensity: 0.3 }));
 bookletInside.rotation.y = Math.PI; // facing into the case
 booklet.add(bookletFront, bookletInside);
 
@@ -1041,11 +1042,21 @@ function show(i, { open = false } = {}) {
     if (open && i === state.index) setOpen(true);
     return;
   }
-  setOpen(false);
+  // (the case shrinks away, so it shuts at once, the disc and booklet going home with it)
+  state.closeWhenHome = false;
+  state.discOutTarget = 0;
+  state.openTarget = 0;
   state.swap = { to: i, t: 0, open };
 }
 
 function setOpen(on) {
+  state.closeWhenHome = false;
+  if (!on && state.out > 0.05) {
+    // the disc or the booklet is out: it goes back in first, and the lid shuts once it's home
+    state.discOutTarget = 0;
+    state.closeWhenHome = true;
+    return;
+  }
   state.openTarget = on ? 1 : 0;
   if (!on) setDiscOut(false);
 }
@@ -1357,7 +1368,8 @@ renderer.setAnimationLoop(() => {
   const k = 90, damp = 15;
   openVel += ((state.openTarget - state.open) * k - openVel * damp) * dt;
   state.open += openVel * dt;
-  const o = THREE.MathUtils.clamp(state.open, -0.05, 1.04);
+  if (state.open < 0) { state.open = 0; openVel = Math.abs(openVel) * 0.2; }   // shut: it knocks against the case
+  const o = THREE.MathUtils.clamp(state.open, 0, 1.04);
   hinge.rotation.y = -o * THREE.MathUtils.degToRad(176);
   content.position.x = (W / 2) * ease(THREE.MathUtils.clamp(o, 0, 1));
   if (portrait) {
@@ -1424,6 +1436,7 @@ renderer.setAnimationLoop(() => {
   // the screen (the full width of a phone, the height of a wide screen, short of the bars), the disc spinning, the
   // booklet open at its notes; the case moves up and back out of its way.
   state.out += (state.discOutTarget - state.out) * Math.min(1, dt * 3.2);
+  if (state.closeWhenHome && state.out < 0.05) setOpen(false);
   const lift = ease(THREE.MathUtils.clamp(state.out, 0, 1));
   if (lift > 0.0005) {
     const isDisc = state.lifted === 'disc';
