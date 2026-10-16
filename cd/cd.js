@@ -650,7 +650,7 @@ const NOTES = {
   // the catalogue, from the press at the time (no press photo: the cover takes its place)
   ww4: {
     cat: 'Single', caption: 'A Halloween drop · 2018',
-    text: ['Two pioneers of Chicago drill, King Louie and Mikey Dollaz, over a beat by Zora Jones and Drippin, let out of the vault on Halloween 2018.',
+    text: ['Chicago drill meets sci-fi black metal: two pioneers of the sound, King Louie and Mikey Dollaz, over a beat by Zora Jones and Drippin, let out of the vault for Halloween 2018.',
       'The production is Fractal Fantasy’s bass-heavy, mutant dancehall: heavy drums and warped, chromatic stabs, a menacing backdrop for the pair’s hard delivery.',
       'The beat first surfaced in Zora Jones’s 2017 FACT mix. Famous Eno, of Manchester’s Swing Ting crew, turns it into a driving club remix that keeps the original’s aggressive percussion.'],
     credits: ['Vocals: King Louie & Mikey Dollaz', 'Produced by Zora Jones & Drippin', 'Remix: Famous Eno'],
@@ -665,10 +665,10 @@ const NOTES = {
   'yea-hoe-mixes': {
     cat: 'EP', caption: 'Yea Hoe, four ways', logo: 'cd/press/gangsta-boo-logo.webp', photo: 'cd/press/gangsta-boo.webp',
     title: ['cd/press/yea-hoe-title.webp', 'cd/press/mixes-title.webp'],
-    text: ['“Yea Hoe”, taken apart and rebuilt four ways: the Devil’s Daughter Mix, Richelle’s “Virtual Geisha” remix, a remix by Vjuan Allure, and the instrumental.',
-      'Richelle is the Brussels producer behind Pelican Fly, the label that put out Sinjin Hawke’s first EP. Vjuan Allure, the Washington D.C. ballroom DJ behind the classic 2000 edit of “The Ha Dance”, takes the record to the ballroom.',
+    text: ['“Yea Hoe”, four ways. First the Devil’s Daughter Mix: Sinjin’s own early, ruthlessly stripped-back cut, named for the alter-ego Gangsta Boo rapped under in Three 6 Mafia’s early years.',
+      'Then Richelle’s “Virtual Geisha” remix, from the Brussels producer behind Pelican Fly, and Vjuan Allure, the Washington D.C. ballroom DJ behind the classic 2000 edit of “The Ha Dance”, taking it to the ballroom; and the instrumental.',
       'Both Gangsta Boo and Vjuan Allure have since passed. This EP keeps them together.'],
-    credits: ['Vocals: Gangsta Boo', 'Original produced by Sinjin Hawke', 'Remixes: Richelle, Vjuan Allure', 'In memory of Gangsta Boo, 1979–2023'],
+    credits: ['Vocals: Gangsta Boo', 'Produced by Sinjin Hawke', 'Devil’s Daughter Mix: Sinjin Hawke', 'Remixes: Richelle, Vjuan Allure', 'In memory of Gangsta Boo, 1979–2023'],
   },
   'how-we-rock': {
     cat: 'Single', caption: 'Chicago bop · Montreal · Bergen',
@@ -687,7 +687,7 @@ const NOTES = {
   'yea-hoe': {
     cat: 'Single', caption: 'Red Bull Music Academy · 2013', logo: 'cd/press/gangsta-boo-logo.webp', photo: 'cd/press/gangsta-boo.webp',
     title: ['cd/press/yea-hoe-title.webp'],
-    text: ['Red Bull Music Academy put Three 6 Mafia’s Gangsta Boo together with a young Sinjin Hawke, and “Yea Hoe” was the result, given away as a free download in September 2013.',
+    text: ['A mutual friend linked them at a show in Atlanta. Three 6 Mafia’s Gangsta Boo cut “Yea Hoe” with Sinjin Hawke in two takes, and Red Bull Music Academy gave it away as a free download in September 2013.',
       'Hawke built it as orchestral crunk, horns and strings swelling under Boo’s bouncing Memphis flow; the title is her signature ad-lib.',
       'It landed weeks after her long-awaited mixtape It’s Game Involved. FACT called the two “surprisingly apt collaborators”.'],
     credits: ['Vocals: Gangsta Boo', 'Produced by Sinjin Hawke', 'In memory of Gangsta Boo, 1979–2023'],
