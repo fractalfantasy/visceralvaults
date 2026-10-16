@@ -515,7 +515,7 @@ hinge.add(lid);
 // the booklet, held in the lid under its face as in a real case: it fills the front edge to edge (between the
 // rails top and bottom, from the hinge strip to the far side), the clips holding it from inside; the cover on the
 // front, the release's notes inside. The square art is cropped a hair to the opening rather than stretched.
-const BOOK_W = 133.5, BOOK_H = 135;
+const BOOK_W = 130, BOOK_H = 131.5;   // a hair short of the rails all round
 const BOOK = Math.max(BOOK_W, BOOK_H);
 const BOOK_AT = new THREE.Vector3(2.75, 0, 0.92);
 function bookletPlane() {
