@@ -83,7 +83,11 @@ scene.environment = pmrem.fromScene(room, 0.03).texture;
 scene.environmentIntensity = 0.86;
 
 // the same room as a plain cube map with mips, for the disc's own shader to look things up in
-const roomCube = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter });
+// (big, so a glint mirrored in the plastic stays sharp: 1024 a side, 512 on a phone; ROOM_BIAS keeps every
+// soft lookup, given in mips of a 256 cube, as soft as it was)
+const ROOM_SIZE = matchMedia('(pointer: coarse)').matches ? 512 : 1024;
+const ROOM_BIAS = Math.log2(ROOM_SIZE / 256).toFixed(1);
+const roomCube = new THREE.WebGLCubeRenderTarget(ROOM_SIZE, { type: THREE.HalfFloatType, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter });
 const cubeCamera = new THREE.CubeCamera(0.1, 100, roomCube);
 cubeCamera.position.set(0, 1.5, 0);
 cubeCamera.update(renderer, room);
@@ -180,7 +184,7 @@ function plasticMaterial(rod, boost = 1) {
       uniform float uBoost;
       varying vec3 vWorld;
       varying vec3 vN;
-      vec3 room(vec3 d, float lod) { return textureLod(uRoom, d, lod).rgb * uGain; }
+      vec3 room(vec3 d, float lod) { return textureLod(uRoom, d, max(lod + ${ROOM_BIAS}, 0.0)).rgb * uGain; }
       float schlick(float c, float f0) { return f0 + (1.0 - f0) * pow(1.0 - c, 5.0); }
 
       // the room seen through a rod at one wavelength: in, off its far side, out (where it bends again)
@@ -204,9 +208,9 @@ function plasticMaterial(rod, boost = 1) {
         vec3 across = normalize(cross(N, V) + vec3(1e-4, 0.0, 0.0));
         vec3 mirrored = room(R, 0.1);
         // the studio's lamps reflected: each colour from a slightly different angle, so a highlight's edges
-        // fringe red on one side and blue on the other. Read a few mips down: at full size a lamp's edge is a
-        // handful of the cube's texels, and its fringes show them as steps
-        vec3 lamps = vec3(room(normalize(R + across * 0.006), 1.8).r, room(R, 1.8).g, room(normalize(R - across * 0.006), 1.8).b);
+        // fringe red on one side and blue on the other. Read from the big cube's sharp end (twice the detail of
+        // a 256 one; a lamp's edge from a small cube shows its texels as steps in the fringes)
+        vec3 lamps = vec3(room(normalize(R + across * 0.006), -1.0).r, room(R, -1.0).g, room(normalize(R - across * 0.006), -1.0).b);
         vec3 glint = max(lamps - 1.1, 0.0) * 0.8;
         if (uRod < 0.5) {
           // both faces of a thin sheet reflect: face on, only the bright lamps show; at a slant it's a mirror
@@ -336,7 +340,7 @@ const discShader = {
     varying vec3 vTx;
     varying vec3 vTy;
 
-    vec3 room(vec3 d, float lod) { return textureLod(uRoom, d, lod).rgb; }
+    vec3 room(vec3 d, float lod) { return textureLod(uRoom, d, max(lod + ${ROOM_BIAS}, 0.0)).rgb; }
 
     // a wavelength (nm) as a colour, from three overlapping bells (red with a violet tail, green, blue)
     vec3 hue(float nm) {
@@ -485,6 +489,7 @@ booklet.add(bookletFront, bookletInside);
 const hdr = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 });
 const quarterA = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType });
 const quarterB = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType });
+const quarterQ = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType });
 
 // what's bright enough to flare: the glints, well above the white of the page
 const brightPass = new FullScreenQuad(new THREE.ShaderMaterial({
@@ -508,25 +513,40 @@ const brightPass = new FullScreenQuad(new THREE.ShaderMaterial({
 
 // eight thin arms from each glint, like a lens's star filter
 const starPass = new FullScreenQuad(new THREE.ShaderMaterial({
-  uniforms: { tSource: { value: null }, uTexel: { value: new THREE.Vector2() } },
+  uniforms: { tHalf: { value: null }, tQuarter: { value: null }, uTexelQ: { value: new THREE.Vector2() } },
   vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
   fragmentShader: /* glsl */`
-    uniform sampler2D tSource;
-    uniform vec2 uTexel;
+    uniform sampler2D tHalf;      // the bright parts at half the screen's resolution
+    uniform sampler2D tQuarter;   // and at a quarter, smoother
+    uniform vec2 uTexelQ;         // a quarter-size texel
     varying vec2 vUv;
     void main() {
-      vec3 c = texture2D(tSource, vUv).rgb;
+      vec3 c = texture2D(tHalf, vUv).rgb;
+      // each arm: its bright root sampled densely from the sharp copy, one half-size texel apart (crisp, and no
+      // beads); its long faint tail from the smooth one. Distances in quarter-size texels.
       for (int a = 0; a < 4; a++) {
         float ang = float(a) * 0.7853982 + 0.26;
-        vec2 d = vec2(cos(ang), sin(ang)) * uTexel * (a % 2 == 0 ? 1.6 : 1.0);
-        for (int i = 1; i <= 14; i++) {
-          float w = exp(-float(i) * 0.24) * (a % 2 == 0 ? 0.55 : 0.3);
-          c += (texture2D(tSource, vUv + d * float(i)).rgb + texture2D(tSource, vUv - d * float(i)).rgb) * w;
+        float step = a % 2 == 0 ? 1.6 : 1.0;
+        float amp = a % 2 == 0 ? 0.55 : 0.3;
+        vec2 dir = vec2(cos(ang), sin(ang)) * uTexelQ;
+        for (int j = 1; j <= 10; j++) {
+          float x = float(j) * 0.5;
+          float w = exp(-0.24 * x / step) * amp * 0.5 / step;
+          c += (texture2D(tHalf, vUv + dir * x).rgb + texture2D(tHalf, vUv - dir * x).rgb) * w;
+        }
+        for (int k = 6; k <= 22; k++) {
+          float x = float(k);
+          if (x > 14.0 * step) break;
+          float w = exp(-0.24 * x / step) * amp / step;
+          c += (texture2D(tQuarter, vUv + dir * x).rgb + texture2D(tQuarter, vUv - dir * x).rgb) * w;
         }
       }
       gl_FragColor = vec4(c, 1.0);
     }`,
 }));
+// the sharp copy boxed down to the smooth one
+const halve = new FullScreenQuad(brightPass.material.clone());
+halve.material.uniforms.uThreshold.value = 0;
 
 // onto the screen: the flares (on a white page added light can't show, so they cool what they cross a little,
 // with white-hot middles), a soft shoulder over the brightest values, then sRGB
@@ -573,11 +593,15 @@ function resize() {
   camera.fov = baseFov;
   camera.updateProjectionMatrix();
   hdr.setSize(w * dpr, h * dpr);
-  const qw = Math.max(1, Math.round(w * dpr / 4)), qh = Math.max(1, Math.round(h * dpr / 4));
+  const flare = Math.min(0.5, 1600 / (w * dpr));   // the flares: half the screen's resolution (at most 1600 wide)
+  const qw = Math.max(1, Math.round(w * dpr * flare)), qh = Math.max(1, Math.round(h * dpr * flare));
   quarterA.setSize(qw, qh);
   quarterB.setSize(qw, qh);
   brightPass.material.uniforms.uTexel.value.set(1 / (w * dpr), 1 / (h * dpr));
-  starPass.material.uniforms.uTexel.value.set(1 / qw, 1 / qh);
+  const sw = Math.max(1, Math.round(w * dpr / 4)), sh = Math.max(1, Math.round(h * dpr / 4));
+  quarterQ.setSize(sw, sh);
+  halve.material.uniforms.uTexel.value.set(1 / qw, 1 / qh);
+  starPass.material.uniforms.uTexelQ.value.set(1 / sw, 1 / sh);
 }
 addEventListener('resize', resize);
 resize();
@@ -1464,7 +1488,11 @@ renderer.setAnimationLoop(() => {
   brightPass.material.uniforms.tSource.value = hdr.texture;
   renderer.setRenderTarget(quarterA);
   brightPass.render(renderer);
-  starPass.material.uniforms.tSource.value = quarterA.texture;
+  halve.material.uniforms.tSource.value = quarterA.texture;
+  renderer.setRenderTarget(quarterQ);
+  halve.render(renderer);
+  starPass.material.uniforms.tHalf.value = quarterA.texture;
+  starPass.material.uniforms.tQuarter.value = quarterQ.texture;
   renderer.setRenderTarget(quarterB);
   starPass.render(renderer);
   composite.material.uniforms.tScene.value = hdr.texture;
