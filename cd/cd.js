@@ -656,7 +656,7 @@ const texture = (url, srgb) => {
 // when it first comes up, so the one on screen isn't kept waiting behind the rest; the others follow, one at a
 // time, once it's in.
 const BOOKLETS = { jashim: 'booklets/jashim.jpg' };
-const V = '?v=4';   // bump when a picture changes, so browsers don't keep the old one
+const V = '?v=5';   // bump when a picture changes, so browsers don't keep the old one
 const loaded = new Map();
 function releaseTextures(i) {
   if (!loaded.has(i)) {
@@ -791,6 +791,36 @@ function outlined(text, size, line) {
   gg.drawImage(shrunk, 0, 0);
   return grown;
 }
+// The chrome alphabet (after Gangsta Boo's Both Worlds lettering; chrome/: A-Z, '.', '&'), for artists' names
+const chromeGlyphs = new Map();
+function chromeGlyph(ch) {
+  const key = { '.': 'dot', '&': 'amp' }[ch] ?? ch;
+  if (!/^([A-Z]|dot|amp)$/.test(key)) return null;
+  if (!chromeGlyphs.has(key)) {
+    const im = new Image();
+    im.src = `chrome/${key}.webp${V}`;
+    chromeGlyphs.set(key, im);
+  }
+  return chromeGlyphs.get(key);
+}
+// a name in chrome capitals, its baseline at y, h tall; returns its width (with draw = false, only measures)
+function chromeText(g, text, x, y, h, draw = true) {
+  let w = 0;
+  for (const ch of text.toUpperCase()) {
+    if (ch === ' ') { w += h * 0.42; continue; }
+    const im = chromeGlyph(ch);
+    if (im?.naturalWidth) {
+      const gw = h * im.naturalWidth / (im.naturalHeight - (ch === 'Q' ? 16 * im.naturalHeight / 165 : 0));
+      if (draw) g.drawImage(im, x + w, y - h, gw, h * im.naturalHeight / (im.naturalHeight - (ch === 'Q' ? 16 * im.naturalHeight / 165 : 0)));
+      w += gw + h * 0.06;
+    } else {
+      g.font = `700 ${h}px Inter`;
+      if (draw) g.fillText(ch, x + w, y);
+      w += g.measureText(ch).width + h * 0.06;
+    }
+  }
+  return w - h * 0.06;
+}
 const insidePages = new Map();
 function insidePage(r) {
   if (insidePages.has(r.id)) return insidePages.get(r.id);
@@ -806,7 +836,8 @@ function insidePage(r) {
   const photo = load(notes?.photo ?? `cd/covers/${r.id}.webp`);
   const logo = notes?.logo ? load(notes.logo) : null;
   const titleArt = (notes?.title || []).map(load);
-  Promise.all([fontsReady, ...[wordmark, photo, logo, ...titleArt].filter(Boolean).map(im => im.decode().catch(() => {}))]).then(() => {
+  const glyphs = [...new Set(`${r.artist} ${r.title}`.toUpperCase())].map(chromeGlyph).filter(Boolean);
+  Promise.all([fontsReady, ...[wordmark, photo, logo, ...titleArt, ...glyphs].filter(Boolean).map(im => im.decode().catch(() => {}))]).then(() => {
     const g = canvas.getContext('2d');
     if (notes && notes.cat !== 'VV007') {
       pressPage(g, N, r, notes, { photo, logo, titleArt, square: !notes.photo });
@@ -960,11 +991,34 @@ function pressPage(g, N, r, notes, { photo, logo, titleArt = [], square = false 
     ax = M - 4 + h * logo.naturalWidth / logo.naturalHeight + 12;
     artist = artist.replace(/^Gangsta Boo\s*/i, '');
   }
-  g.font = '700 27px Inter';
-  g.fillStyle = INK;
-  g.fillText(artist.toUpperCase(), ax, top);
-  ax += g.measureText(artist.toUpperCase()).width + 14;
-  if (aside) {
+  // the names in the chrome lettering, the "&"s and commas between them (and a "feat.") in plain type; all of
+  // it shrunk to fit the line if need be
+  const guestName = aside.match(/^(feat\.?|ft\.)\s+(.+)$/i);
+  const parts = artist.split(/(\s*,\s*|\s+&\s+)/).filter(Boolean)
+    .map(t => (/^\s*[,&]\s*$/.test(t) ? { sep: t.trim() } : { name: t.trim() }));
+  if (guestName) parts.push({ sep: guestName[1].toLowerCase() }, { name: guestName[2] });
+  const layoutLine = (h, draw) => {
+    let x = ax;
+    for (const p of parts) {
+      if (p.name) {
+        x += chromeText(g, p.name, x, top + 2, h, draw) + h * 0.3;
+      } else {
+        g.font = `600 ${Math.round(h * 0.62)}px Inter`;
+        g.fillStyle = '#666';
+        const comma = p.sep === ',';
+        if (comma) x -= h * 0.18;
+        if (draw) g.fillText(p.sep, x, top);
+        x += g.measureText(p.sep).width + h * 0.3;
+      }
+    }
+    return x - h * 0.3;
+  };
+  g.font = '500 27px Inter';
+  const asideW = aside && !guestName ? 14 + g.measureText(aside).width : 0;
+  let nameH = 40;
+  while (nameH > 16 && layoutLine(nameH, false) + asideW > N - M) nameH -= 2;
+  ax = layoutLine(nameH, true) + 14;
+  if (aside && !guestName) {
     g.font = '500 27px Inter';
     g.fillStyle = '#555';
     g.fillText(aside, ax, top);
