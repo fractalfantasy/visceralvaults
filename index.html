@@ -37,7 +37,14 @@
     border-radius: 50%; cursor: pointer; display: grid; place-items: center; background: var(--ink); color: var(--page); }
   .mode svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; }
   .release b { display: block; font-weight: 700; font-size: 14px; letter-spacing: .02em; }
-  .release span { color: var(--dim); }
+  .release span { display: block; color: var(--dim); }
+  /* the release's links, under its name: a little stack of pills */
+  .release .links { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; margin-top: 12px; }
+  .release .links a { font-size: 10.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink);
+    text-decoration: none; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--dock);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); transition: border-color .2s, transform .2s; }
+  .release .links a:hover { border-color: var(--ink); transform: translateX(-2px); }
+  .release .links a:focus-visible { outline: 2px solid #4a7dff; outline-offset: 2px; }
 
   .hint { position: fixed; left: 0; right: 0; bottom: calc(var(--bar) + 96px + env(safe-area-inset-bottom)); text-align: center;
     color: var(--dim); font-size: 12px; letter-spacing: .02em; pointer-events: none; transition: opacity .6s; z-index: 2; }
@@ -77,8 +84,11 @@
   body:not(.dark) .ffplayer-links a:hover { color: #000; }
   @media (max-width: 560px) {
     .corner img { width: 108px; }
-    .release { top: auto; bottom: calc(var(--bar) + 140px + env(safe-area-inset-bottom)); left: 20px; right: 20px; text-align: center; }
-    .hint { bottom: calc(var(--bar) + 78px + env(safe-area-inset-bottom)); }
+    .release { top: auto; bottom: calc(var(--bar) + 84px + env(safe-area-inset-bottom)); left: 12px; right: 12px; text-align: center; }
+    .release .links { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 5px; margin-top: 8px; }
+    .release .links a { font-size: 9.5px; letter-spacing: .06em; padding: 5px 9px; }
+    .release .links a:hover { transform: none; }
+    .hint { bottom: auto; top: calc(max(18px, env(safe-area-inset-top)) + 46px); padding: 0 20px; }
     .thumb { width: 36px; height: 36px; }
   }
 </style>
@@ -91,7 +101,7 @@
 </head>
 <body>
 <div class="corner"><a href="/" aria-label="Visceral Vaults home"><img class="on-light" src="../assets/img/site/visceral-vaults-wordmark.png" alt="VISCERAL VAULTS"><img class="on-dark" src="../assets/img/site/visceral-vaults-wordmark-grey.png" alt=""></a></div>
-<div class="release" aria-live="polite"><b id="title"></b><span id="artist"></span></div>
+<div class="release" aria-live="polite"><b id="title"></b><span id="artist"></span><nav class="links" id="links" aria-label="Listen"></nav></div>
 <div class="hint" id="hint">Tap the case to open it, the disc to play it, the booklet to read it · drag to turn it · pinch to zoom</div>
 <button class="mode" id="dark" aria-pressed="false" title="Light / dark (B)"><span class="sr">Black background</span>
   <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5"/><path d="M12 4.5a7.5 7.5 0 0 0 0 15z" fill="currentColor"/></svg></button>

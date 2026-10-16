@@ -1133,6 +1133,11 @@ function setRelease(i) {
   bookletInside.material.needsUpdate = true;
   $('title').textContent = r.title;
   $('artist').textContent = r.artist;
+  // where to hear it: the streaming services it's on, and its own links (a single's "Listen", a pre-save)
+  const services = [['spotify', 'Spotify'], ['appleMusic', 'Apple Music'], ['youtube', 'YouTube'], ['bandcamp', 'Bandcamp']];
+  $('links').replaceChildren(...services.filter(([k]) => r[k]).map(([k, label]) => [label, r[k]])
+    .concat((r.links || []).map(l => [l.label, l.href]))
+    .map(([label, href]) => Object.assign(document.createElement('a'), { href, target: '_blank', rel: 'noopener', textContent: label })));
   document.querySelectorAll('.thumb').forEach((b, j) => b.setAttribute('aria-pressed', String(j === i)));
   history.replaceState(null, '', `${location.pathname}${location.search}#${r.id}`);
 }
