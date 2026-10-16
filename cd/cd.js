@@ -16,7 +16,9 @@ const PAGE = 0xf6 / 255; // the page's grey (#f6f6f4, near enough)
 
 // ---------------------------------------------------------------- the releases
 const releases = await fetch('../data/releases.json').then(r => r.json());
-// JASHIM's two singles get CDs of their own here (covers and words from the press page), next to the album
+const todayISO = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
+// JASHIM's two singles get CDs of their own here (covers and words from the press page), where the album goes; the
+// album itself only comes up once it's out (November 6th)
 const SINGLES = [
   { id: 'yo-se', of: 'jashim', song: 0, title: 'Yo Sé', artist: 'JASHIM', date: '2026-10-02', cover: 'jashim/img/single-yo-se.jpg',
     links: [{ label: 'Listen', href: 'https://visceralvaults.lnk.to/YoSe' }] },
@@ -28,6 +30,11 @@ for (const single of SINGLES.slice().reverse()) {
   if (!album) continue;
   Object.assign(single, { audio: [album.audio[single.song]], tracks: [album.tracks[single.song]], lengths: [album.lengths?.[single.song]], credit: album.credit });
   releases.splice(releases.indexOf(album) + 1, 0, single);
+}
+const albumDates = Object.fromEntries(releases.map(r => [r.id, r.date]));
+for (const id of new Set(SINGLES.map(s => s.of))) {
+  const album = releases.find(r => r.id === id);
+  if (album && album.date > todayISO) releases.splice(releases.indexOf(album), 1);
 }
 
 // ---------------------------------------------------------------- renderer, camera, studio
@@ -858,9 +865,8 @@ const PLATFORMS = [['spotify', 'Spotify'], ['appleMusic', 'Apple Music'], ['yout
 const releaseLinks = (r) => PLATFORMS.filter(([k]) => r[k]).map(([k, label]) => [label, r[k]])
   .concat((r.links || []).map(l => [l.label, l.href]));
 
-const todayISO = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
 // each song once: until an album is out, a song that's also a single plays from the single's CD; then from the album's
-const albumOut = (id) => (releases.find(r => r.id === id)?.date ?? '') <= todayISO;
+const albumOut = (id) => (albumDates[id] ?? '') <= todayISO;
 const ownedBySingle = (release, i) => SINGLES.some(s => s.of === release.id && s.song === i && releases.includes(s) && !albumOut(release.id));
 const entries = releases.flatMap(release => (release.tracks || []).map((_, i) => ({ release, i })))
   .filter(({ release, i }) => release.audio?.[i] && canPlay(release, i))
