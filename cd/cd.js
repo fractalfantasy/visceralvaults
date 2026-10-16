@@ -512,15 +512,26 @@ hinge.add(lid);
   }
 }
 
-// the booklet, held in the lid under its face: the cover on the front, the release's notes inside
-const BOOK = 120;
+// the booklet, held in the lid under its face as in a real case: it fills the front edge to edge (between the
+// rails top and bottom, from the hinge strip to the far side), the clips holding it from inside; the cover on the
+// front, the release's notes inside. The square art is cropped a hair to the opening rather than stretched.
+const BOOK_W = 133.5, BOOK_H = 135;
+const BOOK = Math.max(BOOK_W, BOOK_H);
+const BOOK_AT = new THREE.Vector3(2.75, 0, 0.92);
+function bookletPlane() {
+  const g = new THREE.PlaneGeometry(BOOK_W, BOOK_H);
+  const uv = g.attributes.uv;
+  const sx = Math.min(1, BOOK_W / BOOK_H), sy = Math.min(1, BOOK_H / BOOK_W);
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, 0.5 + (uv.getX(i) - 0.5) * sx, 0.5 + (uv.getY(i) - 0.5) * sy);
+  return g;
+}
 const booklet = new THREE.Group();
-booklet.position.set(2, 0, 0.7);
+booklet.position.copy(BOOK_AT);
 lid.add(booklet);
-const bookletFront = part(new THREE.PlaneGeometry(BOOK, BOOK),
+const bookletFront = part(bookletPlane(),
   new THREE.MeshPhysicalMaterial({ roughness: 0.4, clearcoat: 0.5, clearcoatRoughness: 0.2, envMapIntensity: 0.42 }));
-bookletFront.position.z = 0.15;
-const bookletInside = part(new THREE.PlaneGeometry(BOOK, BOOK), new THREE.MeshPhysicalMaterial({ roughness: 0.75, specularIntensity: 0.15, envMapIntensity: 0.3 }));
+bookletFront.position.z = 0.12;
+const bookletInside = part(bookletPlane(), new THREE.MeshPhysicalMaterial({ roughness: 0.75, specularIntensity: 0.15, envMapIntensity: 0.3 }));
 bookletInside.rotation.y = Math.PI; // facing into the case
 booklet.add(bookletFront, bookletInside);
 
@@ -1527,7 +1538,7 @@ renderer.setAnimationLoop(() => {
   }
   disc.position.set(0, 0, -1.0 + 1.6 * Math.max(0, o - 0.6)); // the disc rises a hair off the rosette once open
   disc.scale.setScalar(1);
-  booklet.position.set(2, 0, 0.7);
+  booklet.position.copy(BOOK_AT);
   booklet.quaternion.identity();
   booklet.scale.setScalar(1);
 
