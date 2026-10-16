@@ -76,7 +76,7 @@ const room = new RoomEnvironment();
 // case drifts and turns, its highlight sweeps across the lid
 const STRIP = [2.2, 11.6, -8.6];
 {
-  const strip = new THREE.Mesh(new THREE.PlaneGeometry(8, 0.8), new THREE.MeshBasicMaterial({ color: new THREE.Color().setScalar(12), side: THREE.DoubleSide }));
+  const strip = new THREE.Mesh(new THREE.PlaneGeometry(6, 0.5), new THREE.MeshBasicMaterial({ color: new THREE.Color().setScalar(6), side: THREE.DoubleSide }));
   strip.position.set(...STRIP);
   strip.lookAt(0, 1.5, 0);
   room.add(strip);
@@ -93,11 +93,23 @@ const roomCube = new THREE.WebGLCubeRenderTarget(ROOM_SIZE, { type: THREE.HalfFl
 const cubeCamera = new THREE.CubeCamera(0.1, 100, roomCube);
 cubeCamera.position.set(0, 1.5, 0);
 cubeCamera.update(renderer, room);
+// What the plastic and the discs mirror: a real place (env/sky.jpg, one of WaterBall's 360s: sky, clouds, a sea
+// and rocks, a low sun) round the studio's lamps, so a reflection is of something. The lamps still light it all.
+new THREE.TextureLoader().load('env/sky.jpg', (sky) => {
+  sky.colorSpace = THREE.SRGBColorSpace;
+  const place = new THREE.Scene();
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(40, 64, 32),
+    new THREE.MeshBasicMaterial({ map: sky, side: THREE.BackSide, color: new THREE.Color().setScalar(1.15) }));
+  dome.rotation.y = -0.9;   // the sun low behind the studio's main lamps, to the left
+  place.add(dome);
+  room.traverse((o) => { if (o.isMesh && o.material.color && o.material.color.r > 1.5) place.add(o.clone()); });
+  cubeCamera.update(renderer, place);
+});
 
 // the lamps of that room, as directions from the middle (for the disc's rainbows) and how bright each is
 const LAMPS = [
   [-16.116, 14.37, 8.208, 50], [-16.109, 18.021, -8.207, 50], [14.904, 12.198, -1.832, 17],
-  [-0.462, 8.89, 14.52, 43], [3.235, 11.486, -12.541, 20], [...STRIP, 12],
+  [-0.462, 8.89, 14.52, 43], [3.235, 11.486, -12.541, 20], [...STRIP, 6],
 ].map(([x, y, z, p]) => ({ dir: new THREE.Vector3(x, y - 1.5, z).normalize(), power: p / 50 }));
 
 // a key light for the shadow on the table (the room does the rest of the lighting)
@@ -213,13 +225,14 @@ function plasticMaterial(rod, boost = 1) {
         // fringe red on one side and blue on the other. Read from the big cube's sharp end (twice the detail of
         // a 256 one; a lamp's edge from a small cube shows its texels as steps in the fringes)
         vec3 lamps = vec3(room(normalize(R + across * 0.006), -1.0).r, room(R, -1.0).g, room(normalize(R - across * 0.006), -1.0).b);
-        vec3 glint = max(lamps - 1.1, 0.0) * 0.8;
+        vec3 glint = min(max(lamps - 1.1, 0.0) * 0.6, vec3(1.4));   // bright, but under the flares
         if (uRod < 0.5) {
           // both faces of a thin sheet reflect: face on, only the bright lamps show; at a slant it's a mirror
           float both = 2.0 * F / (1.0 + F);
+          // (face on, the ~10% two faces reflect: enough to see the sky over the cover; more toward the edges)
           float edge = max(both - 2.0 * f0 / (1.0 + f0), 0.0);
-          float a = clamp(edge + 0.03, 0.0, 1.0);
-          gl_FragColor = vec4(mirrored * a + glint * both * 0.9 * uBoost, a);
+          float a = clamp(edge + both * 0.55 + 0.02, 0.0, 1.0);
+          gl_FragColor = vec4(mirrored * a * 1.5 + glint * both * 0.9 * uBoost, a);
           return;
         }
         // polystyrene bends red a little less than blue: the rods split the room into colour at their edges
@@ -658,7 +671,7 @@ const texture = (url, srgb) => {
 // when it first comes up, so the one on screen isn't kept waiting behind the rest; the others follow, one at a
 // time, once it's in.
 const BOOKLETS = { jashim: 'booklets/jashim.jpg' };
-const V = '?v=6';   // bump when a picture changes, so browsers don't keep the old one
+const V = '?v=7';   // bump when a picture changes, so browsers don't keep the old one
 const loaded = new Map();
 function releaseTextures(i) {
   if (!loaded.has(i)) {
