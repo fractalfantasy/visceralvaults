@@ -221,6 +221,9 @@ tray.add(part(slab(roundRect(W, H, R), 1.1, -5), sheet));
 // the disc: label and data faces (one shader), a polished edge, a clear hub
 const discUniforms = {
   uArt: { value: null },
+  uRelief: { value: null },
+  uStickers: { value: 0 },                          // 1: the label is a sheet of stickers (an image with gaps)
+  uTint: { value: new THREE.Color(1, 1, 1) },       // the disc's metal: silver, or gold
   uRoom: { value: roomCube.texture },
   uFace: { value: 1 },
   uLampDir: { value: LAMPS.map(l => l.dir) },
@@ -236,12 +239,16 @@ const discShader = {
     varying vec3 vRad;
     varying vec3 vTan;
     varying vec2 vLocal;
+    varying vec3 vTx;
+    varying vec3 vTy;
     void main() {
       vLocal = position.xy;
       vec4 w = modelMatrix * vec4(position, 1.0);
       vWorld = w.xyz;
       mat3 m = mat3(modelMatrix);
       vN = normalize(m * normal);
+      vTx = m * vec3(1.0, 0.0, 0.0);
+      vTy = m * vec3(0.0, 1.0, 0.0);
       vec2 rd = normalize(position.xy + vec2(1e-6, 0.0));
       vRad = normalize(m * vec3(rd, 0.0));
       vTan = normalize(m * vec3(-rd.y, rd.x, 0.0));
@@ -249,6 +256,9 @@ const discShader = {
     }`,
   fragmentShader: /* glsl */`
     uniform sampler2D uArt;
+    uniform sampler2D uRelief;
+    uniform float uStickers;
+    uniform vec3 uTint;
     uniform samplerCube uRoom;
     uniform float uFace;
     uniform vec3 uLampDir[5];
@@ -261,6 +271,8 @@ const discShader = {
     varying vec3 vRad;
     varying vec3 vTan;
     varying vec2 vLocal;
+    varying vec3 vTx;
+    varying vec3 vTy;
 
     vec3 room(vec3 d, float lod) { return textureLod(uRoom, d, lod).rgb; }
 
@@ -302,13 +314,42 @@ const discShader = {
       vec3 mirror = (room(R + radial * 0.05, 1.2) + 2.0 * room(R, 0.6) + room(R - radial * 0.05, 1.2)) * 0.25 * uMirror;
       float data = smoothstep(22.0 - aa, 22.0 + aa, r) * (1.0 - smoothstep(58.8 - aa, 58.8 + aa, r));
       vec3 colours = rainbows(V, radial, along) * uRainbow;
-      vec3 silver = mirror * 0.9 + colours * (0.25 + 0.75 * data) * 1.4;
+      vec3 silver = (mirror * 0.9 + colours * (0.25 + 0.75 * data) * 1.4) * uTint;
 
       // the stacking ring near the hub: moulded, frosted
       float stack = smoothstep(17.0 - aa, 17.0 + aa, r) * (1.0 - smoothstep(19.2 - aa, 19.2 + aa, r));
       vec3 col = mix(silver, room(N, 5.0) * uLight * 0.8 + room(R, 2.5) * 0.12 * uMirror, stack * 0.9);
 
-      if (uFace > 0.5) {
+      if (uFace > 0.5 && uStickers > 0.5) {
+        // the label is stickers: die-cut, standing up off the metal, which shows (and glistens) between them
+        vec2 uv = vLocal / (2.0 * ${DISC.toFixed(1)}) + 0.5;
+        vec4 art = texture(uArt, uv);
+        // their soft shadow on the metal, from the studio's main lamps above and to the left
+        float under = textureLod(uArt, uv + vec2(0.004, -0.005), 4.0).a;
+        col *= 1.0 - 0.4 * under;
+        // the sticker's own surface: flat on top, rounded over at its edge (the relief map), lit by the room
+        float e = 1.5 / 1024.0;
+        float hl = textureLod(uRelief, uv - vec2(e, 0.0), 0.5).r;
+        float hr = textureLod(uRelief, uv + vec2(e, 0.0), 0.5).r;
+        float hd = textureLod(uRelief, uv - vec2(0.0, e), 0.5).r;
+        float hu = textureLod(uRelief, uv + vec2(0.0, e), 0.5).r;
+        float k = 0.55 / (2.0 * e * 2.0 * ${DISC.toFixed(1)});   // 0.55 mm high, over the gap in mm
+        vec3 n = normalize(vec3(-(hr - hl) * k, -(hu - hd) * k, 1.0));
+        vec3 Ns = normalize(normalize(vTx) * n.x + normalize(vTy) * n.y + N * n.z);
+        vec3 Rs = reflect(-V, Ns);
+        float cs = clamp(dot(Ns, V), 0.0, 1.0);
+        float Fs = 0.05 + 0.95 * pow(1.0 - cs, 5.0);
+        float shine = texture(uRelief, uv).g;
+        // the stickers come with their own shine painted in: keep their colours, lit a little by the room's key
+        float key = clamp(dot(Ns, normalize(uLampDir[0] + uLampDir[3])), 0.0, 1.0);
+        vec3 body = art.rgb * (0.72 + 0.32 * key);
+        vec3 laminate = room(Rs, 0.25) * (Fs * 1.1 + 0.05) * shine;
+        // the laminate is a holographic film: thin-film colours that slide with the angle, faint, over everything
+        vec3 film = hue(430.0 + 300.0 * fract(cs * 1.6 + dot(uv, vec2(1.7, 1.1)))) * room(Rs, 2.0) * 0.07 * shine;
+        vec3 sticker = body + laminate + film + colours * 0.05 * shine;
+        float onLabel = smoothstep(23.0 - aa, 23.0 + aa, r);
+        col = mix(col, sticker, art.a * onLabel);
+      } else if (uFace > 0.5) {
         // the label: the cover, printed from just outside the mirror band to just inside the rim
         float printed = smoothstep(23.5 - aa, 23.5 + aa, r) * (1.0 - smoothstep(58.0 - aa, 58.0 + aa, r));
         vec3 art = texture(uArt, vLocal / (2.0 * ${DISC.toFixed(1)}) + 0.5).rgb;
@@ -438,12 +479,20 @@ const composite = new FullScreenQuad(new THREE.ShaderMaterial({
     }`,
 }));
 
+let portrait = false;
+let baseFov = 26;
 function resize() {
   const w = innerWidth, h = innerHeight, dpr = renderer.getPixelRatio();
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
-  // keep the open case (twice as wide) in frame on narrow screens
-  camera.fov = THREE.MathUtils.clamp(26 * Math.max(1, 1.25 / camera.aspect), 26, 52);
+  // On a tall screen the case turns a quarter (hinge at the top, so the lid opens upward and the open case stacks
+  // down the screen) and the closed case fills the width. On a wide one it opens to the left, both halves in frame.
+  portrait = camera.aspect < 0.85;
+  const distance = camera.position.distanceTo(new THREE.Vector3(0, 0, 8));
+  baseFov = portrait
+    ? THREE.MathUtils.radToDeg(2 * Math.atan(84 / (distance * camera.aspect)))
+    : THREE.MathUtils.clamp(26 * Math.max(1, 1.25 / camera.aspect), 26, 52);
+  camera.fov = baseFov;
   camera.updateProjectionMatrix();
   hdr.setSize(w * dpr, h * dpr);
   const qw = Math.max(1, Math.round(w * dpr / 4)), qh = Math.max(1, Math.round(h * dpr / 4));
@@ -457,18 +506,33 @@ resize();
 
 // ---------------------------------------------------------------- covers
 const loader = new THREE.TextureLoader();
-const covers = releases.map(r => {
-  const t = loader.load(`../${r.cover}`);
-  t.colorSpace = THREE.SRGBColorSpace;
+// The discs' designs (discs/<id>.webp: a ring of die-cut stickers drawn from the cover, see-through between them;
+// discs/<id>-relief.webp: how each sticker stands up), and the metal each is pressed on. A release without one
+// has its cover printed on a silver disc.
+const DISCS = {
+  'jashim': { metal: [0.93, 0.97, 1.0] },          // icy silver
+  'ww4': { metal: [0.76, 0.85, 1.0] },             // blue-lit chrome
+  'worst-vocal-dub': { metal: [0.6, 0.74, 1.0] },  // the blue smoke
+  'yea-hoe-mixes': { metal: [0.42, 0.43, 0.46] },  // gunmetal, for the dark rock
+  'how-we-rock': { metal: [0.7, 0.8, 1.0] },       // night blue
+  'one': { metal: [1.0, 1.0, 1.0] },               // bright silver
+  'yea-hoe': { metal: [1.0, 0.72, 0.32] },         // gold
+};
+const texture = (url, srgb) => {
+  const t = loader.load(url);
+  if (srgb) t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = renderer.capabilities.getMaxAnisotropy();
   return t;
-});
+};
+const covers = releases.map(r => DISCS[r.id]
+  ? { art: texture(`discs/${r.id}.webp`, true), relief: texture(`discs/${r.id}-relief.webp`, false), metal: DISCS[r.id].metal }
+  : { art: texture(`../${r.cover}`, true), relief: null, metal: [1, 1, 1] });
 
 // ---------------------------------------------------------------- state
 const state = {
   index: 0,
   open: 0, openTarget: 0,
-  spin: false, spinSpeed: 0,
+  spin: false, spinSpeed: 0, discAngle: 0,
   yaw: -0.35, pitch: 0, yawVel: 0, pitchVel: 0,
   scale: 1, swap: null,
 };
@@ -480,7 +544,11 @@ let playing = false;
 function setRelease(i) {
   state.index = i;
   const r = releases[i];
-  discUniforms.uArt.value = covers[i];
+  const c = covers[i];
+  discUniforms.uArt.value = c.art;
+  discUniforms.uRelief.value = c.relief ?? c.art;
+  discUniforms.uStickers.value = c.relief ? 1 : 0;
+  discUniforms.uTint.value.setRGB(...c.metal);
   $('title').textContent = r.title;
   $('artist').textContent = r.artist;
   document.querySelectorAll('.thumb').forEach((b, j) => b.setAttribute('aria-pressed', String(j === i)));
@@ -536,7 +604,9 @@ const dock = $('covers');
 releases.forEach((r, i) => {
   const b = document.createElement('button');
   b.className = 'thumb';
-  b.style.backgroundImage = `url("../${r.cover}")`;
+  b.style.backgroundImage = DISCS[r.id]
+    ? `url("discs/${r.id}.webp"), radial-gradient(rgb(${DISCS[r.id].metal.map(v => Math.round(v * 225)).join(',')}), #bbb)`
+    : `url("../${r.cover}")`;
   b.title = `${r.title} — ${r.artist}`;
   b.setAttribute('aria-label', `${r.title} by ${r.artist}`);
   b.addEventListener('click', () => show(i));
@@ -622,13 +692,18 @@ renderer.setAnimationLoop(() => {
   state.open += openVel * dt;
   const o = THREE.MathUtils.clamp(state.open, -0.05, 1.04);
   hinge.rotation.y = -o * THREE.MathUtils.degToRad(176);
-  content.position.x = (W / 2) * ease(THREE.MathUtils.clamp(o, 0, 1));
+  content.position.x = (W / 2) * (portrait ? 0.45 : 1) * ease(THREE.MathUtils.clamp(o, 0, 1));
+  if (portrait) {
+    // on a tall screen the open case stands twice as tall: pull back to keep it clear of the title and the dock
+    const fov = baseFov * (1 + 0.32 * ease(THREE.MathUtils.clamp(o, 0, 1)));
+    if (Math.abs(camera.fov - fov) > 0.01) { camera.fov = fov; camera.updateProjectionMatrix(); }
+  }
   disc.position.z = -1.0 + 1.6 * Math.max(0, o - 0.6); // the disc rises a hair off the rosette once open
 
   // the disc: spins up and down smoothly (and while the music plays)
   const target = state.spin || playing ? Math.PI * 2 * 0.55 : 0;
   state.spinSpeed += (target - state.spinSpeed) * Math.min(1, dt * 2.2);
-  disc.rotation.z -= state.spinSpeed * dt;
+  state.discAngle -= state.spinSpeed * dt;
 
   // turning: drag, then coast; the tilt eases home, and the case sways a little at rest
   if (!drag) {
@@ -638,7 +713,9 @@ renderer.setAnimationLoop(() => {
     state.pitchVel *= Math.exp(-dt * 3.2);
     state.pitch += (0 - state.pitch) * Math.min(1, dt * 0.8);
   }
-  caseRoot.rotation.set(state.pitch + Math.sin(time * 0.6) * 0.025, state.yaw + Math.sin(time * 0.37) * 0.04, 0, 'YXZ');
+  const turn = portrait ? -Math.PI / 2 + 0.24 : 0; // (and less of a three-quarter view, to fill the width)
+  disc.rotation.z = state.discAngle - turn;         // the disc's art stays upright either way
+  caseRoot.rotation.set(state.pitch + Math.sin(time * 0.6) * 0.025, turn + state.yaw + Math.sin(time * 0.37) * 0.04, 0, 'YXZ');
   caseRoot.position.y = 14 + Math.sin(time * 0.8) * 1.2;
 
   // changing release: out (shrink, a quarter turn), swap the disc, back in with a bounce
