@@ -21,9 +21,11 @@ const todayISO = (() => { const d = new Date(); return `${d.getFullYear()}-${Str
 // album itself only comes up once it's out (November 6th)
 const SINGLES = [
   { id: 'yo-se', of: 'jashim', song: 0, title: 'Yo Sé', artist: 'JASHIM', date: '2026-10-02', cover: 'jashim/img/single-yo-se.jpg',
-    links: [{ label: 'Listen', href: 'https://visceralvaults.lnk.to/YoSe' }] },
+    spotify: 'https://open.spotify.com/album/0uxljKvtHXzGjNgAJQk9Si', appleMusic: 'https://music.apple.com/album/6813068302',
+    youtube: 'https://music.youtube.com/playlist?list=OLAK5uy_mbCP9RQ4ABvPM0XKX4BaGsalMnm5rdzvk' },
   { id: 'gistro', of: 'jashim', song: 3, title: 'Gistro (feat. Moonstar)', artist: 'JASHIM', date: '2026-10-16', cover: 'jashim/img/single-2.jpg',
-    links: [{ label: 'Listen', href: 'https://VisceralVaults.lnk.to/Gistro' }] },
+    spotify: 'https://open.spotify.com/album/54ArdDL7uFfDbn0oxaI8rz', appleMusic: 'https://music.apple.com/album/6814929039',
+    youtube: 'https://music.youtube.com/playlist?list=OLAK5uy_lbt4Vp0hb_SF-niFOeBKjQz9MUt0-d1T8' },
 ];
 for (const single of SINGLES.slice().reverse()) {
   const album = releases.find(r => r.id === single.of);
