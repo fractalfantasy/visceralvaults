@@ -595,7 +595,7 @@ const DISCS = {
   'yea-hoe-mixes': { metal: [0.42, 0.43, 0.46] },  // gunmetal, for the dark rock
   'how-we-rock': { metal: [0.7, 0.8, 1.0] },       // night blue
   'one': { metal: [1.0, 1.0, 1.0] },               // bright silver
-  'yea-hoe': { metal: [1.0, 0.72, 0.32] },         // gold
+  'yea-hoe': { metal: [1.0, 0.86, 0.93] },         // rose silver, for the chrome and the pink
 };
 const texture = (url, srgb) => {
   const t = loader.load(url);
@@ -607,13 +607,14 @@ const texture = (url, srgb) => {
 // when it first comes up, so the one on screen isn't kept waiting behind the rest; the others follow, one at a
 // time, once it's in.
 const BOOKLETS = { jashim: 'booklets/jashim.jpg' };
+const V = '?v=3';   // bump when a picture changes, so browsers don't keep the old one
 const loaded = new Map();
 function releaseTextures(i) {
   if (!loaded.has(i)) {
     const r = releases[i];
-    const cover = texture(`covers/${r.id}.webp`, true);
+    const cover = texture(`covers/${r.id}.webp${V}`, true);
     loaded.set(i, DISCS[r.id]
-      ? { cover, art: texture(`discs/${r.id}.webp`, true), relief: texture(`discs/${r.id}-relief.webp`, false), metal: DISCS[r.id].metal }
+      ? { cover, art: texture(`discs/${r.id}.webp${V}`, true), relief: texture(`discs/${r.id}-relief.webp${V}`, false), metal: DISCS[r.id].metal }
       : { cover, art: cover, relief: null, metal: [1, 1, 1] });
   }
   return loaded.get(i);
@@ -685,7 +686,7 @@ const NOTES = {
     credits: ['Produced by Just Blaze & Sinjin Hawke'],
   },
   'yea-hoe': {
-    cat: 'Single', caption: 'Red Bull Music Academy · 2013', logo: 'cd/press/gangsta-boo-logo.webp', photo: 'cd/press/gangsta-boo.webp',
+    cat: 'Single', caption: 'Red Bull Music Academy · 2013', logo: 'cd/press/gangsta-boo-logo.webp', photo: 'cd/press/gangsta-boo-pink.webp',
     title: ['cd/press/yea-hoe-title.webp'],
     text: ['A mutual friend linked them at a show in Atlanta. Three 6 Mafia’s Gangsta Boo cut “Yea Hoe” with Sinjin Hawke in two takes, and Red Bull Music Academy gave it away as a free download in September 2013.',
       'Hawke built it as orchestral crunk, horns and strings swelling under Boo’s bouncing Memphis flow; the title is her signature ad-lib.',
@@ -752,7 +753,7 @@ function insidePage(r) {
   t.anisotropy = renderer.capabilities.getMaxAnisotropy();
   insidePages.set(r.id, t);
   const notes = NOTES[r.id];
-  const load = (src) => { const im = new Image(); im.src = `../${src}`; return im; };
+  const load = (src) => { const im = new Image(); im.src = `../${src}${V}`; return im; };
   const photo = load(notes?.photo ?? `cd/covers/${r.id}.webp`);
   const logo = notes?.logo ? load(notes.logo) : null;
   const titleArt = (notes?.title || []).map(load);
