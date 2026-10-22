@@ -41,7 +41,8 @@
   var title = document.getElementById('title'), text = document.getElementById('text'), go = document.getElementById('go');
   function done(heading, message) { title.textContent = heading; text.textContent = message; go.hidden = true; }
   if (list === 'vvpress') text.textContent = 'Stop receiving press emails from Visceral Vaults?';
-  if (!token || (list !== 'vv' && list !== 'vvpress' && list !== 'test')) done('Link incomplete', 'This unsubscribe link is missing something. Reply to the email and we’ll take you off the list.');
+  if (list === 'vvdjs') text.textContent = 'Stop receiving DJ promo emails from Visceral Vaults?';
+  if (!token || (list !== 'vv' && list !== 'vvpress' && list !== 'vvdjs' && list !== 'test')) done('Link incomplete', 'This unsubscribe link is missing something. Reply to the email and we’ll take you off the list.');
   else if (token === 'test') done('Test email', 'This was a test copy: nothing to unsubscribe from.');
   go.addEventListener('click', function () {
     go.disabled = true;
